@@ -10,7 +10,6 @@ basic inverted index based code search in ~600 lines.
 
 ```
 
-2016/01/01 21:37:27 []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}
 2016/01/01 21:37:27 starting indexer: 0/4
 2016/01/01 21:37:27 starting indexer: 1/4
 2016/01/01 21:37:27 starting indexer: 2/4
