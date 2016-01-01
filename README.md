@@ -73,4 +73,3 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 * "fuzzy" 2,3 ngram tokens
 * support for queries like "udp -java"
 * emacs plugin
-* 
