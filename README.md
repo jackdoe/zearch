@@ -36,13 +36,7 @@ $ go run *.go  # without any arguments
 2016/01/01 21:42:19 listening to 8080
 ```
 
-# search
-
-* just open http://localhost:8080
-* text.Scanner + basic alphanumeric filter is used for tokenization, besides basenames everything else must be searched with full token `__realpath` for example cannot be found with `path`
-* basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
-
-# search json
+# json api
 
 is just uses the `QUERY_STRING` so searching for `udp ipv4` is `http://localhost:8080/search?udp%20ipv4`
 
@@ -65,3 +59,18 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 }
 ```
 
+# search
+
+* just open http://localhost:8080, and be amazed by the design :D
+* text.Scanner + basic alphanumeric filter is used for tokenization, besides basenames everything else must be searched with full token `__realpath` for example cannot be found with `path`
+* basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
+
+
+# TODO
+
+* store it off heap
+* real time indexing
+* "fuzzy" 2,3 ngram tokens
+* support for queries like "udp -java"
+* emacs plugin
+* 
