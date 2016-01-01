@@ -38,9 +38,8 @@ $ go run *.go  # without any arguments
 
 # search
 
- * just open http://localhost:8080
-
- * basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
+* just open http://localhost:8080
+* basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
 
 # search json
 
