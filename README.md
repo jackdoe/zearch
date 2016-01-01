@@ -39,6 +39,7 @@ $ go run *.go  # without any arguments
 # search
 
 * just open http://localhost:8080
+* text.Scanner + basic alphanumeric filter is used for tokenization, besides basenames everything else must be searched with full token `__realpath` for example cannot be found with `path`
 * basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
 
 # search json
