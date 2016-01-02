@@ -4,6 +4,8 @@ basic inverted index based code search in ~600 lines.
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot.gif)
 
+![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot-emacs.gif)
+
 # run
 
 * indexing for the first time
@@ -67,6 +69,19 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 * the max token len is MAX_TOKEN_LEN which is set to 10 characters, this is based on no data at all, just feels ok when i search, not only i dont have to type more than 10 characters to find the thing, but very very few things conflict after 10 characters
 * the doc id is id << 10 | weight, so the max weight is 1024 and we can store max 2097152 (2**21) files, otherwise the postinglist has to be moved from `[]int32` to `[]int64`
 
+# emacs
+
+`zearch-search-current` - searches the current word or marked selection
+
+```
+(add-to-list 'load-path "/path/to/zearch.el")
+(require 'zearch)
+(define-key global-map (kbd "M-s") 'zearch-search-current)
+
+;; i use it with key-chord:
+;; (key-chord-define-global "jj" 'zearch-search-current)
+```
+
 # TODO
 
 * store it off heap
@@ -74,4 +89,3 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 * real time indexing
 * "fuzzy" 2,3 ngram tokens
 * support for queries like "udp -java"
-* emacs plugin
