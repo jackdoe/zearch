@@ -4,7 +4,6 @@ basic inverted index based code search in ~600 lines.
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot.gif)
 
-![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot-emacs.gif)
 
 # run
 
@@ -81,6 +80,8 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 ;; i use it with key-chord:
 ;; (key-chord-define-global "jj" 'zearch-search-current)
 ```
+
+![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot-emacs.gif)
 
 # TODO
 
