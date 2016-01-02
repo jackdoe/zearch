@@ -85,7 +85,12 @@ func main() {
 		tokenize(s, func(text string) {
 			queries = append(queries, NewTerm(index.postingList(text)))
 		})
-		query := NewBoolAndQuery(queries)
+		var query Query
+		if len(queries) == 1 {
+			query = queries[0]
+		} else {
+			query = NewBoolAndQuery(queries)
+		}
 
 		hits := []*Hit{}
 		maxSize := 100
