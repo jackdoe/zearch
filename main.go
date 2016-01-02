@@ -168,6 +168,6 @@ $(document).ready(function() {
 		fmt.Fprintf(w, s)
 	})
 
-	log.Printf("listening to %d\n", PORT)
+	log.Printf("listening on port %d\n", PORT)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT), nil))
 }
