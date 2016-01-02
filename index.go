@@ -21,23 +21,23 @@ var ONLY = map[string]bool{
 }
 
 type Index struct {
-	Inverted map[string][]int64
+	Inverted map[string][]int32
 	Forward  []string
 	sync.Mutex
 }
 
 func NewIndex() *Index {
 	return &Index{
-		Inverted: map[string][]int64{},
+		Inverted: map[string][]int32{},
 		Forward:  []string{},
 	}
 }
 
-func (d *Index) postingList(token string) []int64 {
+func (d *Index) postingList(token string) []int32 {
 	if val, ok := d.Inverted[token]; ok {
 		return val
 	}
-	return []int64{}
+	return []int32{}
 }
 
 func (d *Index) load(path string) {
@@ -122,11 +122,15 @@ func (d *Index) adder(input chan string, done chan int) {
 
 			d.Lock()
 
-			id := uint32(len(d.Forward))
+			id := int32(len(d.Forward))
 			d.Forward = append(d.Forward, path)
 
 			for text, count := range uniq {
-				d.Inverted[text] = append(d.Inverted[text], int64(int64(id)<<32|int64(count)))
+				if count > 1024 {
+					count = 1024
+				}
+
+				d.Inverted[text] = append(d.Inverted[text], id<<10|int32(count))
 			}
 			d.Unlock()
 

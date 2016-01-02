@@ -25,7 +25,7 @@ func (q *QueryBase) GetDocId() int32 {
 
 type Term struct {
 	cursor int32
-	items  []int64
+	items  []int32
 	QueryBase
 }
 
@@ -34,10 +34,10 @@ func (t *Term) AddSubQuery(q Query) {
 }
 
 func (t *Term) Score() int64 {
-	return int64(1) + int64(t.items[t.cursor]&0xFFFFFFFF)
+	return int64(1) + int64(t.items[t.cursor]&0x3FF)
 }
 
-func NewTerm(items []int64) *Term {
+func NewTerm(items []int32) *Term {
 	return &Term{
 		cursor:    0,
 		QueryBase: QueryBase{NOT_READY},
@@ -54,7 +54,7 @@ func (t *Term) advance(target int32) int32 {
 	end := int32(len(t.items))
 	for start < end {
 		mid := start + ((end - start) / 2)
-		current := int32(t.items[mid] >> 32)
+		current := int32(t.items[mid] >> 10)
 		if current == target {
 			t.cursor = mid
 			t.docId = target
@@ -76,7 +76,7 @@ func (t *Term) move(to int32) int32 {
 	if t.cursor >= int32(len(t.items)) {
 		t.docId = NO_MORE
 	} else {
-		t.docId = int32(t.items[t.cursor] >> 32)
+		t.docId = int32(t.items[t.cursor] >> 10)
 	}
 	return t.docId
 }

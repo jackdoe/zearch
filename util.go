@@ -45,7 +45,11 @@ func tokenize(s *scanner.Scanner, cb func(string)) {
 		tok = s.Scan()
 		text := strings.ToLower(s.TokenText())
 		if len(text) > 0 && isAlphaNumericNotOnlyDigit(text) {
-			cb(text)
+			if len(text) > MAX_TOKEN_LEN {
+				cb(text[:MAX_TOKEN_LEN])
+			} else {
+				cb(text)
+			}
 		}
 	}
 }
