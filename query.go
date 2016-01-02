@@ -1,6 +1,9 @@
 package main
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 const (
 	NO_MORE   = int32(math.MaxInt32)
@@ -13,6 +16,8 @@ type Query interface {
 	GetDocId() int32
 	AddSubQuery(Query)
 	Score() int64
+	Cost() int32
+	Prepare()
 }
 
 type QueryBase struct {
@@ -30,7 +35,15 @@ type Term struct {
 }
 
 func (t *Term) AddSubQuery(q Query) {
-	// nop
+	// noop
+}
+
+func (t *Term) Prepare() {
+	// noop
+}
+
+func (t *Term) Cost() int32 {
+	return int32(len(t.items))
 }
 
 func (t *Term) Score() int64 {
@@ -92,6 +105,25 @@ type BoolQueryBase struct {
 	queries []Query
 }
 
+func (q *BoolQueryBase) Prepare() {
+	for i := 0; i < len(q.queries); i++ {
+		q.queries[i].Prepare()
+	}
+	sort.Sort(ByCost(q.queries))
+}
+
+type ByCost []Query
+
+func (s ByCost) Len() int {
+	return len(s)
+}
+func (s ByCost) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByCost) Less(i, j int) bool {
+	return s[i].Cost() < s[j].Cost()
+}
+
 func (q *BoolQueryBase) AddSubQuery(sub Query) {
 	q.queries = append(q.queries, sub)
 }
@@ -106,6 +138,14 @@ func NewBoolOrQuery(queries []Query) *BoolOrQuery {
 		BoolQueryBase: BoolQueryBase{queries},
 		QueryBase:     QueryBase{NOT_READY},
 	}
+}
+
+func (q *BoolOrQuery) Cost() int32 {
+	sum := int32(0)
+	for i := 0; i < len(q.queries); i++ {
+		sum += q.queries[i].Cost()
+	}
+	return sum
 }
 
 func (q *BoolOrQuery) Score() int64 {
@@ -160,6 +200,21 @@ func NewBoolAndQuery(queries []Query) *BoolAndQuery {
 		BoolQueryBase: BoolQueryBase{queries},
 		QueryBase:     QueryBase{NOT_READY},
 	}
+}
+
+func (q *BoolAndQuery) Cost() int32 {
+	if len(q.queries) == 0 {
+		return int32(0)
+	}
+
+	min := int32(math.MaxInt32)
+	for i := 0; i < len(q.queries); i++ {
+		cost := q.queries[i].Cost()
+		if min > cost {
+			min = cost
+		}
+	}
+	return min
 }
 
 func (q *BoolAndQuery) Score() int64 {

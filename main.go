@@ -91,7 +91,7 @@ func main() {
 		} else {
 			query = NewBoolAndQuery(queries)
 		}
-
+		query.Prepare()
 		hits := []*Hit{}
 		maxSize := 100
 		add := func(h *Hit) {
