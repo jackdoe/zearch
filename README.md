@@ -1,39 +1,58 @@
-# zearch
+# zearch [ work in progress ]
 
-basic inverted index based code search in ~600 lines.
+basic inverted index based code search in ~900 lines.
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot.gif)
-
 
 # run
 
 * indexing for the first time
 
 ```
-2016/01/02 13:03:45 []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}
-2016/01/02 13:03:45 starting indexer: 0/4
-2016/01/02 13:03:45 starting indexer: 1/4
-2016/01/02 13:03:45 starting indexer: 2/4
-2016/01/02 13:03:45 starting indexer: 3/4
-2016/01/02 13:04:23 indexing []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}: 37.412563s
-2016/01/02 13:04:29 dumpToDisk /tmp/index.msgpack.lz4: 5.952573s
-2016/01/02 13:04:29 listening on port 8080
-```
-
-The index is msgpack encoded + lz4 compressed, and having the inverted + forward index of those source trees is about 41mb
+2016/01/04 01:57:01 []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}
+2016/01/04 01:57:01 starting indexer: 0/4
+2016/01/04 01:57:01 starting indexer: 1/4
+2016/01/04 01:57:01 starting indexer: 2/4
+2016/01/04 01:57:01 starting indexer: 3/4
+2016/01/04 01:57:58 done
+2016/01/04 01:57:58 indexing []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}: 56.653851s
+2016/01/04 01:58:24 flushToDisk /tmp/zearch.index.bin: 25.692545s
+2016/01/04 01:58:24 indexing is done, start without arguments
 
 ```
-$ du -ah /tmp/index.msgpack.lz4
-41M     /tmp/index.msgpack.lz4
+
+it will create 4 shards with prefix `/tmp/zearch.index.bin`, each of which is binary dump of string arrays and postings, 
+it will mmap them and search in them, indexing takes a more memory since it builds everything in-memory and then dumps it to disk
+
+```
+jack@foo ~ $ du -sh /tmp/zearch.index.bin*
+984K    /tmp/zearch.index.bin.shard.0.forward.data
+268K    /tmp/zearch.index.bin.shard.0.forward.header
+4.3M    /tmp/zearch.index.bin.shard.0.inverted.data
+7.3M    /tmp/zearch.index.bin.shard.0.inverted.header
+6.6M    /tmp/zearch.index.bin.shard.0.postings
+968K    /tmp/zearch.index.bin.shard.1.forward.data
+264K    /tmp/zearch.index.bin.shard.1.forward.header
+4.3M    /tmp/zearch.index.bin.shard.1.inverted.data
+7.4M    /tmp/zearch.index.bin.shard.1.inverted.header
+6.6M    /tmp/zearch.index.bin.shard.1.postings
+968K    /tmp/zearch.index.bin.shard.2.forward.data
+268K    /tmp/zearch.index.bin.shard.2.forward.header
+4.8M    /tmp/zearch.index.bin.shard.2.inverted.data
+8.5M    /tmp/zearch.index.bin.shard.2.inverted.header
+7.0M    /tmp/zearch.index.bin.shard.2.postings
+964K    /tmp/zearch.index.bin.shard.3.forward.data
+264K    /tmp/zearch.index.bin.shard.3.forward.header
+4.4M    /tmp/zearch.index.bin.shard.3.inverted.data
+7.5M    /tmp/zearch.index.bin.shard.3.inverted.header
+6.7M    /tmp/zearch.index.bin.shard.3.postings
 ```
 
-The whole index is kept in ram, above takes about 300mb for `66023 files` and `1340808 tokens` while indexing linux kernel, glibc, perl5, and jdk8
 
 * if the index is ready
 
 ```
 $ go run *.go  # without any arguments
-2016/01/02 13:10:51 load /tmp/index.msgpack.lz4: 3.296206s
 2016/01/02 13:10:51 listening on port 8080
 ```
 
@@ -85,7 +104,6 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 
 # TODO
 
-* store it off heap
 * store the postinglists in compressed form
 * real time indexing
 * "fuzzy" 2,3 ngram tokens

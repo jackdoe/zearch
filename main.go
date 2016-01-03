@@ -9,6 +9,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -19,7 +20,7 @@ const (
 	PORT            = 8080
 	FILENAME_WEIGHT = 200
 	FILEPATH_WEIGHT = 1
-	STORED_INDEX    = "/tmp/index.proto.lz4"
+	STORED_INDEX    = "/tmp/zearch.index.bin"
 
 	// for me it seems like all tokens > 10 symbols just waste space
 	// but depending on your files, this might not be the case
@@ -41,23 +42,18 @@ type Result struct {
 }
 
 func main() {
-	go func() {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT+1), nil))
-	}()
 	flag.Parse()
 	args := flag.Args()
-	index := NewIndex()
+	index := NewIndex(STORED_INDEX)
 	if len(args) > 0 {
 		took(fmt.Sprintf("indexing %#v", args), func() {
 			index.doIndex(args)
 		})
 		took(fmt.Sprintf("flushToDisk %s", STORED_INDEX), func() {
-			index.flushToDisk(STORED_INDEX)
+			index.flushToDisk()
 		})
-	} else {
-		took(fmt.Sprintf("load %s", STORED_INDEX), func() {
-			index.loadFromDisk(STORED_INDEX)
-		})
+		log.Printf("indexing is done, start without arguments")
+		os.Exit(0)
 	}
 
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
@@ -118,14 +114,14 @@ func main() {
 		}
 
 		total := 0
-		index.executeQuery(query, func(document string, id int32, score int64) {
+		index.executeQuery(query, func(id int32, score int64) {
 			total++
-			add(&Hit{
-				Path:  document,
-				Id:    id,
-				Score: score,
-			})
+			add(&Hit{Id: id, Score: score})
 		})
+
+		for _, hit := range hits {
+			hit.Path, _ = index.fetchForward(int(hit.Id))
+		}
 
 		elapsed := time.Since(t0)
 		totalfiles, approxterms := index.stats()

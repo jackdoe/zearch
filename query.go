@@ -16,7 +16,7 @@ type Query interface {
 	GetDocId() int32
 	AddSubQuery(Query)
 	Score() int64
-	Cost() int32
+	Cost() uint32
 	Prepare(*Segment)
 }
 
@@ -29,9 +29,9 @@ func (q *QueryBase) GetDocId() int32 {
 }
 
 type Term struct {
-	cursor int32
-	items  []int32
-	term   string
+	cursor   int32
+	postings []byte
+	term     string
 	QueryBase
 }
 
@@ -42,15 +42,15 @@ func (t *Term) AddSubQuery(q Query) {
 func (t *Term) Prepare(s *Segment) {
 	t.cursor = 0
 	t.docId = NOT_READY
-	t.items = s.findPostingsList(t.term)
+	t.postings = s.findPostingsList(t.term)
 }
 
-func (t *Term) Cost() int32 {
-	return int32(len(t.items))
+func (t *Term) Cost() uint32 {
+	return uint32(len(t.postings) / 4)
 }
 
 func (t *Term) Score() int64 {
-	return int64(1) + int64(t.items[t.cursor]&0x3FF)
+	return int64(1) + int64(t.getAt(t.cursor)&0x3FF)
 }
 
 func NewTerm(term string) *Term {
@@ -58,20 +58,22 @@ func NewTerm(term string) *Term {
 		cursor:    0,
 		term:      term,
 		QueryBase: QueryBase{NOT_READY},
-		items:     []int32{},
 	}
 }
 
+func (t *Term) getAt(idx int32) uint32 {
+	return getUint32(t.postings, uint32(idx*4))
+}
 func (t *Term) advance(target int32) int32 {
 	if t.docId == NO_MORE || t.docId == target || target == NO_MORE {
 		t.docId = target
 		return t.docId
 	}
 	start := t.cursor
-	end := int32(len(t.items))
+	end := int32(len(t.postings) / 4)
 	for start < end {
 		mid := start + ((end - start) / 2)
-		current := int32(t.items[mid] >> 10)
+		current := int32(t.getAt(mid) >> 10)
 		if current == target {
 			t.cursor = mid
 			t.docId = target
@@ -90,10 +92,10 @@ func (t *Term) advance(target int32) int32 {
 
 func (t *Term) move(to int32) int32 {
 	t.cursor = to
-	if t.cursor >= int32(len(t.items)) {
+	if t.cursor >= int32(len(t.postings)/4) {
 		t.docId = NO_MORE
 	} else {
-		t.docId = int32(t.items[t.cursor] >> 10)
+		t.docId = int32(t.getAt(t.cursor) >> 10)
 	}
 	return t.docId
 }
@@ -144,8 +146,8 @@ func NewBoolOrQuery(queries []Query) *BoolOrQuery {
 	}
 }
 
-func (q *BoolOrQuery) Cost() int32 {
-	sum := int32(0)
+func (q *BoolOrQuery) Cost() uint32 {
+	sum := uint32(0)
 	for i := 0; i < len(q.queries); i++ {
 		sum += q.queries[i].Cost()
 	}
@@ -206,12 +208,12 @@ func NewBoolAndQuery(queries []Query) *BoolAndQuery {
 	}
 }
 
-func (q *BoolAndQuery) Cost() int32 {
+func (q *BoolAndQuery) Cost() uint32 {
 	if len(q.queries) == 0 {
-		return int32(0)
+		return uint32(0)
 	}
 
-	min := int32(math.MaxInt32)
+	min := uint32(math.MaxUint32)
 	for i := 0; i < len(q.queries); i++ {
 		cost := q.queries[i].Cost()
 		if min > cost {

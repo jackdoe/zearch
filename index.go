@@ -22,12 +22,12 @@ type Index struct {
 	shards []*Segment
 }
 
-const N_SEGMENTS = 20
+const N_SEGMENTS = 4
 
-func NewIndex() *Index {
+func NewIndex(name string) *Index {
 	s := make([]*Segment, N_SEGMENTS)
 	for i := 0; i < N_SEGMENTS; i++ {
-		s[i] = NewSegment()
+		s[i] = NewSegment(fmt.Sprintf("%s.shard.%d", name, i))
 	}
 	return &Index{
 		shards: s,
@@ -81,7 +81,9 @@ func (d *Index) adder(input chan string, done chan int) {
 			name = strings.ToLower(strings.TrimSuffix(name, ext))
 			edge(name, FILENAME_WEIGHT)
 			inc(ext[1:], FILENAME_WEIGHT)
+
 			s := d.shards[rand.Intn(len(d.shards))]
+
 			s.Lock()
 			id := s.addForward(path)
 
@@ -91,6 +93,7 @@ func (d *Index) adder(input chan string, done chan int) {
 				}
 				s.addInverted(text, id<<10|int32(count))
 			}
+
 			s.Unlock()
 
 			f.Close()
@@ -130,30 +133,27 @@ func (d *Index) doIndex(args []string) {
 			panic(err)
 		}
 	}
-	done <- 1
+	for i := 0; i < maxproc; i++ {
+		done <- 1
+	}
+
 	close(workers)
 	close(done)
 	log.Printf("done")
 }
 
-func (d *Index) flushToDisk(path string) {
-	for i, s := range d.shards {
-		s.flushToDisk(fmt.Sprintf("%s.segment.%d", path, i))
+func (d *Index) flushToDisk() {
+	for _, s := range d.shards {
+		s.flushToDisk()
 	}
 }
 
-func (d *Index) loadFromDisk(path string) {
-	for i, s := range d.shards {
-		s.loadFromDisk(fmt.Sprintf("%s.segment.%d", path, i))
-	}
-}
-
-func (d *Index) executeQuery(query Query, cb func(string, int32, int64)) {
+func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
 	for i := 0; i < len(d.shards); i++ {
 		query.Prepare(d.shards[i])
 		for query.Next() != NO_MORE {
 			id := query.GetDocId()
-			cb(d.shards[i].data.Documents[id], int32(i)<<24|id, query.Score())
+			cb(int32(i)<<24|id, query.Score())
 		}
 	}
 }
@@ -164,18 +164,19 @@ func (d *Index) fetchForward(id int) (string, bool) {
 	if shard < 0 || shard > len(d.shards) {
 		return "", false
 	}
-	if id < 0 || id > len(d.shards[shard].data.Documents)-1 {
-		return "", false
+	if s, ok := d.shards[shard].forward.read(uint32(id)); ok {
+		return s, true
 	}
-	return d.shards[shard].data.Documents[id], true
+	return "", false
 }
 
 func (d *Index) stats() (int, int) {
 	total := 0
 	approxterms := 0
 	for _, s := range d.shards {
-		total += len(s.data.Documents)
-		approxterms += len(s.data.Postings)
+		total += s.forward.count()
+		approxterms += s.inverted.count()
 	}
+
 	return total, approxterms
 }
