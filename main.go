@@ -19,7 +19,7 @@ const (
 	PORT            = 8080
 	FILENAME_WEIGHT = 200
 	FILEPATH_WEIGHT = 1
-	STORED_INDEX    = "/tmp/index.msgpack.lz4"
+	STORED_INDEX    = "/tmp/index.proto.lz4"
 
 	// for me it seems like all tokens > 10 symbols just waste space
 	// but depending on your files, this might not be the case
@@ -41,6 +41,9 @@ type Result struct {
 }
 
 func main() {
+	go func() {
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT+1), nil))
+	}()
 	flag.Parse()
 	args := flag.Args()
 	index := NewIndex()
@@ -48,21 +51,22 @@ func main() {
 		took(fmt.Sprintf("indexing %#v", args), func() {
 			index.doIndex(args)
 		})
-		took(fmt.Sprintf("dumpToDisk %s", STORED_INDEX), func() {
-			index.dumpToDisk(STORED_INDEX)
+		took(fmt.Sprintf("flushToDisk %s", STORED_INDEX), func() {
+			index.flushToDisk(STORED_INDEX)
 		})
 	} else {
 		took(fmt.Sprintf("load %s", STORED_INDEX), func() {
-			index.load(STORED_INDEX)
+			index.loadFromDisk(STORED_INDEX)
 		})
 	}
 
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		if id, err := strconv.Atoi(r.URL.RawQuery); err == nil {
-			if id < 0 || id > len(index.Forward)-1 {
+			path, ok := index.fetchForward(id)
+			if !ok {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
-				if file, err := ioutil.ReadFile(index.Forward[id]); err == nil {
+				if file, err := ioutil.ReadFile(path); err == nil {
 					w.Header().Set("Content-Type", "text/plain")
 					w.Write(file)
 				} else {
@@ -83,7 +87,7 @@ func main() {
 
 		queries := []Query{}
 		tokenize(s, func(text string) {
-			queries = append(queries, NewTerm(index.postingList(text)))
+			queries = append(queries, NewTerm(text))
 		})
 		var query Query
 		if len(queries) == 1 {
@@ -91,7 +95,7 @@ func main() {
 		} else {
 			query = NewBoolAndQuery(queries)
 		}
-		query.Prepare()
+
 		hits := []*Hit{}
 		maxSize := 100
 		add := func(h *Hit) {
@@ -114,23 +118,22 @@ func main() {
 		}
 
 		total := 0
-		for query.Next() != NO_MORE {
-			score := query.Score()
+		index.executeQuery(query, func(document string, id int32, score int64) {
 			total++
-			id := query.GetDocId()
 			add(&Hit{
-				Path:  index.Forward[id],
+				Path:  document,
 				Id:    id,
 				Score: score,
 			})
-		}
-		elapsed := time.Since(t0)
+		})
 
+		elapsed := time.Since(t0)
+		totalfiles, approxterms := index.stats()
 		res := &Result{
 			Hits:          hits,
 			FilesMatching: total,
-			FilesInIndex:  len(index.Forward),
-			TokensInIndex: len(index.Inverted),
+			FilesInIndex:  totalfiles,
+			TokensInIndex: approxterms,
 			TookSeconds:   elapsed.Seconds(),
 		}
 

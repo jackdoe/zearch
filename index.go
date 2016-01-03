@@ -2,15 +2,13 @@ package main
 
 import (
 	"bufio"
-	lz4 "github.com/bkaradzic/go-lz4"
-	msgpack "gopkg.in/vmihailenco/msgpack.v2"
-	"io/ioutil"
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"text/scanner"
 )
 
@@ -21,55 +19,27 @@ var ONLY = map[string]bool{
 }
 
 type Index struct {
-	Inverted map[string][]int32
-	Forward  []string
-	sync.Mutex
+	shards []*Segment
 }
 
+const N_SEGMENTS = 4
+
 func NewIndex() *Index {
+	s := make([]*Segment, N_SEGMENTS)
+	for i := 0; i < N_SEGMENTS; i++ {
+		s[i] = NewSegment()
+	}
 	return &Index{
-		Inverted: map[string][]int32{},
-		Forward:  []string{},
+		shards: s,
 	}
 }
 
 func (d *Index) postingList(token string) []int32 {
-	if val, ok := d.Inverted[token]; ok {
-		return val
+	p, _ := d.shards[0].findPostingsList(token)
+	if p != nil {
+		return p.Ids
 	}
 	return []int32{}
-}
-
-func (d *Index) load(path string) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-
-	data, err = lz4.Decode(nil, data)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = msgpack.Unmarshal(data, d); err != nil {
-		panic(err)
-	}
-}
-
-func (d *Index) dumpToDisk(path string) {
-	data, err := msgpack.Marshal(d)
-	if err != nil {
-		panic(err)
-	}
-
-	data, err = lz4.Encode(nil, data)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = ioutil.WriteFile(path, data, 0644); err != nil {
-		panic(err)
-	}
 }
 
 func (d *Index) adder(input chan string, done chan int) {
@@ -119,20 +89,17 @@ func (d *Index) adder(input chan string, done chan int) {
 			name = strings.ToLower(strings.TrimSuffix(name, ext))
 			edge(name, FILENAME_WEIGHT)
 			inc(ext[1:], FILENAME_WEIGHT)
-
-			d.Lock()
-
-			id := int32(len(d.Forward))
-			d.Forward = append(d.Forward, path)
+			s := d.shards[rand.Intn(len(d.shards))]
+			s.Lock()
+			id := s.addForward(path)
 
 			for text, count := range uniq {
 				if count > 1024 {
 					count = 1024
 				}
-
-				d.Inverted[text] = append(d.Inverted[text], id<<10|int32(count))
+				s.addInverted(text, id<<10|int32(count))
 			}
-			d.Unlock()
+			s.Unlock()
 
 			f.Close()
 			for k := range uniq {
@@ -174,4 +141,49 @@ func (d *Index) doIndex(args []string) {
 	done <- 1
 	close(workers)
 	close(done)
+	log.Printf("done")
+}
+
+func (d *Index) flushToDisk(path string) {
+	for i, s := range d.shards {
+		s.flushToDisk(fmt.Sprintf("%s.segment.%d", path, i))
+	}
+}
+
+func (d *Index) loadFromDisk(path string) {
+	for i, s := range d.shards {
+		s.loadFromDisk(fmt.Sprintf("%s.segment.%d", path, i))
+	}
+}
+
+func (d *Index) executeQuery(query Query, cb func(string, int32, int64)) {
+	for i := 0; i < len(d.shards); i++ {
+		query.Prepare(d.shards[i])
+		for query.Next() != NO_MORE {
+			id := query.GetDocId()
+			cb(d.shards[i].data.Documents[id], int32(i)<<24|id, query.Score())
+		}
+	}
+}
+
+func (d *Index) fetchForward(id int) (string, bool) {
+	shard := int(id >> 24)
+	id = id & 0x00FFFFFF
+	if shard < 0 || shard > len(d.shards) {
+		return "", false
+	}
+	if id < 0 || id > len(d.shards[shard].data.Documents)-1 {
+		return "", false
+	}
+	return d.shards[shard].data.Documents[id], true
+}
+
+func (d *Index) stats() (int, int) {
+	total := 0
+	approxterms := 0
+	for _, s := range d.shards {
+		total += len(s.data.Documents)
+		approxterms += len(s.data.Postings)
+	}
+	return total, approxterms
 }

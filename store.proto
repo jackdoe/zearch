@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package main;
+message StoredPostingsList {
+        string term = 1;
+        repeated int32 ids = 2;
+}
+
+message StoredSegment {
+        repeated string documents = 1;
+        repeated StoredPostingsList postings = 2;
+}

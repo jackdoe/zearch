@@ -17,7 +17,7 @@ type Query interface {
 	AddSubQuery(Query)
 	Score() int64
 	Cost() int32
-	Prepare()
+	Prepare(*Segment)
 }
 
 type QueryBase struct {
@@ -31,6 +31,7 @@ func (q *QueryBase) GetDocId() int32 {
 type Term struct {
 	cursor int32
 	items  []int32
+	term   string
 	QueryBase
 }
 
@@ -38,8 +39,15 @@ func (t *Term) AddSubQuery(q Query) {
 	// noop
 }
 
-func (t *Term) Prepare() {
-	// noop
+func (t *Term) Prepare(s *Segment) {
+	t.cursor = 0
+	t.docId = NOT_READY
+	p, _ := s.findPostingsList(t.term)
+	if p == nil {
+		t.items = []int32{}
+	} else {
+		t.items = p.Ids
+	}
 }
 
 func (t *Term) Cost() int32 {
@@ -50,11 +58,12 @@ func (t *Term) Score() int64 {
 	return int64(1) + int64(t.items[t.cursor]&0x3FF)
 }
 
-func NewTerm(items []int32) *Term {
+func NewTerm(term string) *Term {
 	return &Term{
 		cursor:    0,
+		term:      term,
 		QueryBase: QueryBase{NOT_READY},
-		items:     items,
+		items:     []int32{},
 	}
 }
 
@@ -105,9 +114,9 @@ type BoolQueryBase struct {
 	queries []Query
 }
 
-func (q *BoolQueryBase) Prepare() {
+func (q *BoolQueryBase) Prepare(s *Segment) {
 	for i := 0; i < len(q.queries); i++ {
-		q.queries[i].Prepare()
+		q.queries[i].Prepare(s)
 	}
 	sort.Sort(ByCost(q.queries))
 }
