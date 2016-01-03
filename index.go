@@ -22,7 +22,7 @@ type Index struct {
 	shards []*Segment
 }
 
-const N_SEGMENTS = 4
+const N_SEGMENTS = 20
 
 func NewIndex() *Index {
 	s := make([]*Segment, N_SEGMENTS)
@@ -32,14 +32,6 @@ func NewIndex() *Index {
 	return &Index{
 		shards: s,
 	}
-}
-
-func (d *Index) postingList(token string) []int32 {
-	p, _ := d.shards[0].findPostingsList(token)
-	if p != nil {
-		return p.Ids
-	}
-	return []int32{}
 }
 
 func (d *Index) adder(input chan string, done chan int) {

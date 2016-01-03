@@ -42,12 +42,7 @@ func (t *Term) AddSubQuery(q Query) {
 func (t *Term) Prepare(s *Segment) {
 	t.cursor = 0
 	t.docId = NOT_READY
-	p, _ := s.findPostingsList(t.term)
-	if p == nil {
-		t.items = []int32{}
-	} else {
-		t.items = p.Ids
-	}
+	t.items = s.findPostingsList(t.term)
 }
 
 func (t *Term) Cost() int32 {

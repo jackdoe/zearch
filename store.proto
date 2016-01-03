@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package main;
 message StoredPostingsList {
-        string term = 1;
+        string term = 1
+        int32 begin = 2;
+        int32 len = 3;
         repeated int32 ids = 2;
 }
 

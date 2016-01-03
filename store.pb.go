@@ -24,8 +24,7 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type StoredPostingsList struct {
-	Term string  `protobuf:"bytes,1,opt,name=term" json:"term,omitempty"`
-	Ids  []int32 `protobuf:"varint,2,rep,name=ids" json:"ids,omitempty"`
+	Ids []int32 `protobuf:"varint,2,rep,name=ids" json:"ids,omitempty"`
 }
 
 func (m *StoredPostingsList) Reset()         { *m = StoredPostingsList{} }
@@ -33,15 +32,15 @@ func (m *StoredPostingsList) String() string { return proto.CompactTextString(m)
 func (*StoredPostingsList) ProtoMessage()    {}
 
 type StoredSegment struct {
-	Documents []string              `protobuf:"bytes,1,rep,name=documents" json:"documents,omitempty"`
-	Postings  []*StoredPostingsList `protobuf:"bytes,2,rep,name=postings" json:"postings,omitempty"`
+	Documents []string                       `protobuf:"bytes,1,rep,name=documents" json:"documents,omitempty"`
+	Postings  map[string]*StoredPostingsList `protobuf:"bytes,2,rep,name=postings" json:"postings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
 
 func (m *StoredSegment) Reset()         { *m = StoredSegment{} }
 func (m *StoredSegment) String() string { return proto.CompactTextString(m) }
 func (*StoredSegment) ProtoMessage()    {}
 
-func (m *StoredSegment) GetPostings() []*StoredPostingsList {
+func (m *StoredSegment) GetPostings() map[string]*StoredPostingsList {
 	if m != nil {
 		return m.Postings
 	}
