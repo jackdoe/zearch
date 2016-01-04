@@ -52,7 +52,8 @@ func main() {
 		took(fmt.Sprintf("flushToDisk %s.*", STORED_INDEX), func() {
 			index.flushToDisk()
 		})
-
+		index.close()
+		log.Printf("indexing is done, start without arguments")
 		os.Exit(0)
 	}
 

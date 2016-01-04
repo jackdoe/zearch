@@ -26,10 +26,12 @@ func NewMMaped(name string) *MMaped {
 	}
 	return p
 }
+
 func (m *MMaped) close() {
 	m.m.Unmap()
 	m.fd.Close()
 }
+
 func (m *MMaped) seekToStart() {
 	m.fd.Seek(0, 0)
 }
@@ -141,7 +143,11 @@ func NewSegment(name string) *Segment {
 		name:             name,
 	}
 }
-
+func (s *Segment) close() {
+	s.inverted.close()
+	s.forward.close()
+	s.postings.close()
+}
 func (s *Segment) findPostingsList(term string) []byte {
 	extra, ok := s.inverted.bsearch([]byte(term))
 	if ok {

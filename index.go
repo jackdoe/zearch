@@ -180,3 +180,9 @@ func (d *Index) stats() (int, int) {
 
 	return total, approxterms
 }
+
+func (d *Index) close() {
+	for _, s := range d.shards {
+		s.close()
+	}
+}
