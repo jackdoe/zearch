@@ -104,7 +104,7 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 
 # tokenizer
 
-extremely basic _case sensitive_ tokenizer splits tokens on `(c >= 'a' && c <= 'z') || c == '_' || c == ':' || (c >= '0' && c <= '9')`, and tries to upsort things that have "function|func|class|sub" on their line, except "function\func|class.. etc" they are treated as regular tokens.
+extremely basic *case sensitive* tokenizer splits tokens on `(c >= 'a' && c <= 'z') || c == '_' || c == ':' || (c >= '0' && c <= '9')`, and tries to upsort things that have "function|func|class|sub" on their line, except "function\func|class.. etc" they are treated as regular tokens.
 
 ```
 func tokenize(input string, cb func(string, int)) {
