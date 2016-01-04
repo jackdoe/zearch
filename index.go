@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"text/scanner"
 )
 
 var ONLY = map[string]bool{
@@ -37,7 +36,6 @@ func NewIndex(name string) *Index {
 }
 
 func (d *Index) adder(input chan string, done chan int) {
-	sca := &scanner.Scanner{}
 	uniq := map[string]int{}
 	inc := func(text string, n int) {
 		if len(text) > 0 {
@@ -62,25 +60,23 @@ func (d *Index) adder(input chan string, done chan int) {
 	for {
 		select {
 		case path := <-input:
-			f, err := os.Open(path)
+			data, err := ioutil.ReadFile(path)
 			if err != nil {
+				log.Print(err)
 				continue
 			}
-
-			initScanner(sca, bufio.NewReader(f))
-
-			tokenize(sca, func(text string) {
+			tokenize(string(data), func(text string, weird int) {
 				if len(text) > 2 {
-					inc(text, 1)
+					inc(text, 1+(weird*10))
 				}
 			})
 
 			dir, name := filepath.Split(path)
-			for _, di := range strings.Split(strings.ToLower(dir), "/") {
+			for _, di := range strings.Split(dir, "/") {
 				inc(di, 1)
 			}
 			ext := filepath.Ext(name)
-			name = strings.ToLower(strings.TrimSuffix(name, ext))
+			name = strings.TrimSuffix(name, ext)
 			edge(name, FILENAME_WEIGHT)
 			inc(ext[1:], FILENAME_WEIGHT)
 
@@ -98,7 +94,6 @@ func (d *Index) adder(input chan string, done chan int) {
 
 			s.Unlock()
 
-			f.Close()
 			for k := range uniq {
 				delete(uniq, k)
 			}

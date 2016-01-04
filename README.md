@@ -102,6 +102,46 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot-emacs.gif)
 
+# tokenizer
+
+extremely basic _case sensitive_ tokenizer splits tokens on `(c >= 'a' && c <= 'z') || c == '_' || c == ':' || (c >= '0' && c <= '9')`, and tries to upsort things that have "function|func|class|sub" on their line, except "function\func|class.. etc" they are treated as regular tokens.
+
+```
+func tokenize(input string, cb func(string, int)) {
+	weird := 0
+	start, end := -1, -1
+	for i, c := range input {
+		if c == '\n' || c == '\r' {
+			weird = 0
+		}
+		if c >= 'A' && c <= 'Z' {
+			c |= 0x20
+		}
+		if (c >= 'a' && c <= 'z') || c == '_' || c == ':' || (c >= '0' && c <= '9') {
+			if start == -1 {
+				start = i
+				end = start
+			}
+			end++
+		} else {
+			if end-start > 0 {
+				s := input[start:end]
+				if _, ok := WEIRD[s]; ok {
+					weird = 1
+					cb(s, 0)
+				} else {
+					cb(s, weird)
+				}
+			}
+			start, end = -1, -1
+		}
+	}
+	if end-start > 0 {
+		cb(input[start:end], weird)
+	}
+}
+```
+
 # TODO
 
 * store the postinglists in compressed form

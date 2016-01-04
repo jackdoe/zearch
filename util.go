@@ -1,57 +1,49 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
-	"strings"
-	"text/scanner"
 	"time"
 )
 
-var SCANNERERROR = func(s *scanner.Scanner, msg string) {}
-
-func initScanner(s *scanner.Scanner, src io.Reader) {
-	s.Init(src)
-	s.Error = SCANNERERROR
+var WEIRD = map[string]int{
+	"function": 1,
+	"func":     1,
+	"sub":      1,
+	"class":    1,
 }
 
-func isAlphaNumericNotOnlyDigit(s string) bool {
-	nDigit := 0
-	zerox := true
-	for i, c := range s {
-		if zerox && i == 1 && c == 'x' {
-			return false
+func tokenize(input string, cb func(string, int)) {
+	weird := 0
+	start, end := -1, -1
+	for i, c := range input {
+		if c == '\n' || c == '\r' {
+			weird = 0
 		}
-		if c >= '0' && c <= '9' {
-			nDigit++
-			if i == 0 && c == '0' {
-				zerox = true
+		if c >= 'A' && c <= 'Z' {
+			c |= 0x20
+		}
+		if (c >= 'a' && c <= 'z') || c == '_' || c == ':' || (c >= '0' && c <= '9') {
+			if start == -1 {
+				start = i
+				end = start
 			}
-			continue
-		}
-		if (c < 'a' || c > 'z') && c != '_' {
-			return false
+			end++
+		} else {
+			if end-start > 0 {
+				s := input[start:end]
+				if _, ok := WEIRD[s]; ok {
+					weird = 1
+					cb(s, 0)
+				} else {
+					cb(s, weird)
+				}
+			}
+			start, end = -1, -1
 		}
 	}
-	if nDigit == len(s) {
-		return false
-	}
-	return true
-}
-
-func tokenize(s *scanner.Scanner, cb func(string)) {
-	var tok rune
-	for tok != scanner.EOF {
-		tok = s.Scan()
-		text := strings.ToLower(s.TokenText())
-		if len(text) > 0 && isAlphaNumericNotOnlyDigit(text) {
-			if len(text) > MAX_TOKEN_LEN {
-				cb(text[:MAX_TOKEN_LEN])
-			} else {
-				cb(text)
-			}
-		}
+	if end-start > 0 {
+		cb(input[start:end], weird)
 	}
 }
 

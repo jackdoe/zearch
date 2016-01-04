@@ -11,8 +11,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
-	"text/scanner"
 	"time"
 )
 
@@ -78,12 +76,9 @@ func main() {
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		t0 := time.Now()
 
-		s := &scanner.Scanner{}
-		unescaped, _ := url.QueryUnescape(r.URL.RawQuery)
-		initScanner(s, strings.NewReader(unescaped))
-
 		queries := []Query{}
-		tokenize(s, func(text string) {
+		unescaped, _ := url.QueryUnescape(r.URL.RawQuery)
+		tokenize(unescaped, func(text string, weird int) {
 			queries = append(queries, NewTerm(text))
 		})
 		var query Query
