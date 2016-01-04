@@ -38,7 +38,7 @@
             (let ((path (assoc-default 'Path hit))
                   (id (assoc-default 'Id hit))
                   (score (assoc-default 'Score hit)))
-              (insert (format "%s | s:%d | %020d" path score id))
+              (insert (format "%s | s:%d | %010d" path score id))
               (newline))))))
     (zearch-mode)
     (goto-char (point-min)))
@@ -59,7 +59,7 @@
         (fetch (lambda ()
                  (interactive)
                  (let ((line (thing-at-point 'line t)))
-                   (zearch-fetch (substring line -21 -1)))))) ;; last 20 digits are the id
+                   (zearch-fetch (substring line -11 -1)))))) ;; last 10 digits are the id
     (define-key map (kbd "RET") fetch) 
     (define-key map "\C-j" fetch)
     (define-key map "\C-m" fetch)
