@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"log"
+	"os"
 	"strings"
 	"text/scanner"
 	"time"
@@ -93,4 +94,19 @@ func putUint64(b []byte, v uint64) {
 	b[5] = byte(v >> 40)
 	b[6] = byte(v >> 48)
 	b[7] = byte(v >> 56)
+}
+
+func openOrPanic(name string) *os.File {
+	fd, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		panic(err)
+	}
+	return fd
+}
+
+func writeOrPanic(fd *os.File, b []byte) {
+	_, err := fd.Write(b)
+	if err != nil {
+		panic(err)
+	}
 }

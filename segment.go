@@ -10,46 +10,79 @@ import (
 	"unsafe"
 )
 
+type MMaped struct {
+	fd *os.File
+	m  mmap.MMap
+}
+
+func NewMMaped(name string) *MMaped {
+	p := &MMaped{
+		fd: openOrPanic(name),
+	}
+	var err error
+	p.m, err = mmap.MapRegion(p.fd, -1, mmap.RDONLY, 0, 0)
+	if err != nil {
+		p.m = mmap.MMap{}
+	}
+	return p
+}
+func (m *MMaped) close() {
+	m.m.Unmap()
+	m.fd.Close()
+}
+func (m *MMaped) seekToStart() {
+	m.fd.Seek(0, 0)
+}
+
+func (m *MMaped) writeOrPanic(b []byte) {
+	writeOrPanic(m.fd, b)
+}
+
 type StoredStringArray struct {
-	data    *os.File
-	header  *os.File
-	mdata   mmap.MMap
-	mheader mmap.MMap
+	data   *MMaped
+	header *MMaped
+}
+
+func NewStoredStringArray(name string) *StoredStringArray {
+	s := &StoredStringArray{
+		data:   NewMMaped(fmt.Sprintf("%s.data", name)),
+		header: NewMMaped(fmt.Sprintf("%s.header", name)),
+	}
+
+	return s
+}
+
+func (s *StoredStringArray) close() {
+	s.data.close()
+	s.header.close()
 }
 
 func (s *StoredStringArray) write(input []string, cb func(string) uint64) {
 	b8 := make([]byte, 8)
 	off := uint32(0)
-	s.header.Seek(0, 0)
-	s.data.Seek(0, 0)
+	s.header.seekToStart()
+	s.data.seekToStart()
+
 	for i := 0; i < len(input); i++ {
 		bstr := []byte(input[i])
 		putUint64(b8, uint64(off)<<32|uint64(len(bstr)))
-		s.header.Write(b8)
+		s.header.writeOrPanic(b8)
 
 		extra := cb(input[i])
 		putUint64(b8, extra)
-		s.header.Write(b8)
+		s.header.writeOrPanic(b8)
 
-		s.data.Write(bstr)
+		s.data.writeOrPanic(bstr)
 		off += uint32(len(bstr))
 	}
 }
 
-func (s *StoredStringArray) statCount() int {
-	fi, err := s.header.Stat()
-	if err != nil {
-		panic(err)
-	}
-	return int(fi.Size() / 16)
-}
-
 func (s *StoredStringArray) count() int {
-	return len(s.mheader) / 16
+	return len(s.header.m) / 16
 }
 
 func (s *StoredStringArray) bcmp(offa, lena uint32, b []byte) int {
-	return bytes.Compare(s.mdata[offa:offa+lena], b)
+	return bytes.Compare(s.data.m[offa:offa+lena], b)
 }
 
 func (s *StoredStringArray) read(id uint32) (string, bool) {
@@ -57,11 +90,11 @@ func (s *StoredStringArray) read(id uint32) (string, bool) {
 	if id > uint32(size) {
 		return "", false
 	}
-	offlen := getUint64(s.mheader, uint32(id*16))
+	offlen := getUint64(s.header.m, uint32(id*16))
 	off := uint32(offlen >> 32)
 	len := uint32(offlen & 0xFFFFFFFF)
 
-	return string(s.mdata[off : off+len]), true
+	return string(s.data.m[off : off+len]), true
 }
 
 func (s *StoredStringArray) bsearch(input []byte) (uint64, bool) {
@@ -69,14 +102,14 @@ func (s *StoredStringArray) bsearch(input []byte) (uint64, bool) {
 	end := s.count()
 	for start < end {
 		mid := start + ((end - start) / 2)
-		offlen := getUint64(s.mheader, uint32(mid*16))
+		offlen := getUint64(s.header.m, uint32(mid*16))
 
 		offa := uint32(offlen >> 32)
 		lena := uint32(offlen & 0xFFFFFFFF)
 		diff := s.bcmp(offa, lena, input)
 
 		if diff == 0 {
-			extra := getUint64(s.mheader, uint32(mid*16)+8)
+			extra := getUint64(s.header.m, uint32(mid*16)+8)
 			return extra, true
 		}
 		if diff < 0 {
@@ -88,68 +121,25 @@ func (s *StoredStringArray) bsearch(input []byte) (uint64, bool) {
 	return 0, false
 }
 
-func NewStoredStringArray(name string) *StoredStringArray {
-	s := &StoredStringArray{
-		data:   openOrPanic(fmt.Sprintf("%s.data", name)),
-		header: openOrPanic(fmt.Sprintf("%s.header", name)),
-	}
-
-	if s.statCount() > 0 {
-		var err error
-		s.mdata, err = mmap.MapRegion(s.data, -1, mmap.RDONLY, 0, 0)
-		if err != nil {
-			s.mdata = mmap.MMap{}
-		}
-		s.mheader, err = mmap.MapRegion(s.header, -1, mmap.RDONLY, 0, 0)
-		if err != nil {
-			s.mdata = mmap.MMap{}
-		}
-	}
-	return s
-}
-
 type Segment struct {
 	inmemoryInverted map[string][]int32
 	inmemoryForward  []string
 	inverted         *StoredStringArray
 	forward          *StoredStringArray
-	fdPostings       *os.File
-	mPostings        mmap.MMap
+	postings         *MMaped
 	name             string
 	sync.Mutex
 }
 
-func openOrPanic(name string) *os.File {
-	fd, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		panic(err)
-	}
-	return fd
-}
-
-func writeOrPanic(fd *os.File, b []byte) {
-	_, err := fd.Write(b)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func NewSegment(name string) *Segment {
-	d := &Segment{
+	return &Segment{
 		inmemoryInverted: make(map[string][]int32),
 		inmemoryForward:  make([]string, 100),
 		inverted:         NewStoredStringArray(fmt.Sprintf("%s.inverted", name)),
 		forward:          NewStoredStringArray(fmt.Sprintf("%s.forward", name)),
-		fdPostings:       openOrPanic(fmt.Sprintf("%s.postings", name)),
+		postings:         NewMMaped(fmt.Sprintf("%s.postings", name)),
 		name:             name,
 	}
-	var err error
-	d.mPostings, err = mmap.MapRegion(d.fdPostings, -1, mmap.RDONLY, 0, 0)
-	if err != nil {
-		d.mPostings = mmap.MMap{}
-	}
-
-	return d
 }
 
 func (s *Segment) findPostingsList(term string) []byte {
@@ -157,7 +147,7 @@ func (s *Segment) findPostingsList(term string) []byte {
 	if ok {
 		off := uint32(extra >> 32)
 		l := uint32(extra & 0xFFFFFFFF)
-		return s.mPostings[int(off):int(off+l)]
+		return s.postings.m[int(off):int(off+l)]
 	}
 	return []byte{}
 }
@@ -200,7 +190,7 @@ func (s *Segment) flushToDisk() {
 	sort.Sort(ByBytes(terms))
 
 	postings_off := int64(0)
-	s.fdPostings.Seek(0, 0)
+	s.postings.seekToStart()
 	s.inverted.write(terms, func(st string) uint64 {
 		tpostings := s.inmemoryInverted[st]
 		plen := len(tpostings) * 4
@@ -213,8 +203,7 @@ func (s *Segment) flushToDisk() {
 			putUint32Off(buf, soff, uint32(id))
 			soff += 4
 		}
-
-		writeOrPanic(s.fdPostings, buf)
+		s.postings.writeOrPanic(buf)
 		return ret
 	})
 
