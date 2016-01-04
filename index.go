@@ -16,6 +16,8 @@ var ONLY = map[string]bool{
 	".java": true,
 	".c":    true,
 	".go":   true,
+	".pl":   true,
+	".pm":   true,
 }
 
 type Index struct {
