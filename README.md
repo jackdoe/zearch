@@ -9,50 +9,58 @@ basic inverted index based code search in ~900 lines.
 * indexing for the first time
 
 ```
-2016/01/04 01:57:01 []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}
-2016/01/04 01:57:01 starting indexer: 0/4
-2016/01/04 01:57:01 starting indexer: 1/4
-2016/01/04 01:57:01 starting indexer: 2/4
-2016/01/04 01:57:01 starting indexer: 3/4
-2016/01/04 01:57:58 done
-2016/01/04 01:57:58 indexing []string{"/SRC/glibc", "/SRC/go", "/SRC/jdk8", "/SRC/linux", "/SRC/musl", "/SRC/perl5"}: 56.653851s
-2016/01/04 01:58:24 flushToDisk /tmp/zearch.index.bin: 25.692545s
-2016/01/04 01:58:24 indexing is done, start without arguments
+$ go build
+$ ./zearch /SRC/
+2016/01/05 01:10:56 []string{"/SRC/"}
+2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.0
+2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.1
+2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.2
+2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.3
+2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.4
+2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.5
+2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.6
+2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.7
+2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.8
+2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.9
+2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.10
+2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.11
+2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.12
+2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.13
+2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.14
+2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.15
+2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.16
+2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.17
+2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.18
+2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.19
+2016/01/05 01:11:42 done
+2016/01/05 01:11:42 indexing []string{"/SRC/"}: 45.813937s
+jack@foo ~/work/zearch $ ./zearch
 
 ```
 
-it will create 4 shards with prefix `/tmp/zearch.index.bin`, each of which is binary dump of string arrays and postings, 
+it will create N shards (one shard every 15_000 files) with prefix `/tmp/zearch.index.bin/shard.*`, each of which is binary dump of string arrays and postings,
 it will mmap them and search in them, indexing takes a more memory since it builds everything in-memory and then dumps it to disk
 
 ```
-jack@foo ~ $ du -sh /tmp/zearch.index.bin*
-984K    /tmp/zearch.index.bin.shard.0.forward.data
-268K    /tmp/zearch.index.bin.shard.0.forward.header
-4.3M    /tmp/zearch.index.bin.shard.0.inverted.data
-7.3M    /tmp/zearch.index.bin.shard.0.inverted.header
-6.6M    /tmp/zearch.index.bin.shard.0.postings
-968K    /tmp/zearch.index.bin.shard.1.forward.data
-264K    /tmp/zearch.index.bin.shard.1.forward.header
-4.3M    /tmp/zearch.index.bin.shard.1.inverted.data
-7.4M    /tmp/zearch.index.bin.shard.1.inverted.header
-6.6M    /tmp/zearch.index.bin.shard.1.postings
-968K    /tmp/zearch.index.bin.shard.2.forward.data
-268K    /tmp/zearch.index.bin.shard.2.forward.header
-4.8M    /tmp/zearch.index.bin.shard.2.inverted.data
-8.5M    /tmp/zearch.index.bin.shard.2.inverted.header
-7.0M    /tmp/zearch.index.bin.shard.2.postings
-964K    /tmp/zearch.index.bin.shard.3.forward.data
-264K    /tmp/zearch.index.bin.shard.3.forward.header
-4.4M    /tmp/zearch.index.bin.shard.3.inverted.data
-7.5M    /tmp/zearch.index.bin.shard.3.inverted.header
-6.7M    /tmp/zearch.index.bin.shard.3.postings
-```
+jack@foo ~ $ du -h /tmp/zearch.index.bin
+9.5M    /tmp/zearch.index.bin/shard.1
+...
+9.6M    /tmp/zearch.index.bin/shard.15
+245M    /tmp/zearch.index.bin
 
-
-* if the index is ready
+jack@foo ~ $ du -ah /tmp/zearch.index.bin/shard.0/
+2.1M    /tmp/zearch.index.bin/shard.0/inverted.data
+4.0M    /tmp/zearch.index.bin/shard.0/inverted.header
+180K    /tmp/zearch.index.bin/shard.0/forward.data
+3.0M    /tmp/zearch.index.bin/shard.0/posting
+68K     /tmp/zearch.index.bin/shard.0/forward.header
 
 ```
-$ go run *.go  # without any arguments
+
+* when the index is ready
+
+```
+$ ./zearch # without any arguments
 2016/01/02 13:10:51 listening on port 8080
 ```
 
@@ -82,10 +90,10 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 # search
 
 * just open http://localhost:8080, and be amazed by the design :D
-* text.Scanner + basic alphanumeric filter is used for tokenization, besides basenames everything else must be searched with full token `__realpath` for example cannot be found with `path`
 * basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
 * the max token len is MAX_TOKEN_LEN which is set to 10 characters, this is based on no data at all, just feels ok when i search, not only i dont have to type more than 10 characters to find the thing, but very very few things conflict after 10 characters
 * the doc id is id << 10 | weight, so the max weight is 1024 and we can store max 2097152 (2**21) files, otherwise the postinglist has to be moved from `[]int32` to `[]int64`
+* index is case sensitive, look at [tokenizer](#tokenizer) for more detail on the tokenizer
 
 # emacs
 

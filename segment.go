@@ -129,18 +129,16 @@ type Segment struct {
 	inverted         *StoredStringArray
 	forward          *StoredStringArray
 	postings         *MMaped
-	name             string
 	sync.Mutex
 }
 
-func NewSegment(name string) *Segment {
+func NewSegment(root string) *Segment {
 	return &Segment{
 		inmemoryInverted: make(map[string][]int32),
 		inmemoryForward:  make([]string, 100),
-		inverted:         NewStoredStringArray(fmt.Sprintf("%s.inverted", name)),
-		forward:          NewStoredStringArray(fmt.Sprintf("%s.forward", name)),
-		postings:         NewMMaped(fmt.Sprintf("%s.postings", name)),
-		name:             name,
+		inverted:         NewStoredStringArray(fmt.Sprintf("%s/inverted", root)),
+		forward:          NewStoredStringArray(fmt.Sprintf("%s/forward", root)),
+		postings:         NewMMaped(fmt.Sprintf("%s/posting", root)),
 	}
 }
 func (s *Segment) close() {
@@ -216,4 +214,6 @@ func (s *Segment) flushToDisk() {
 	s.forward.write(s.inmemoryForward, func(st string) uint64 {
 		return uint64(0)
 	})
+	s.inmemoryForward = nil
+	s.inmemoryInverted = nil
 }

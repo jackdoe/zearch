@@ -42,19 +42,15 @@ type Result struct {
 func main() {
 	flag.Parse()
 	args := flag.Args()
-	index := NewIndex(STORED_INDEX)
+
 	if len(args) > 0 {
 		took(fmt.Sprintf("indexing %#v", args), func() {
-			index.doIndex(args)
+			doIndex(STORED_INDEX, args)
 		})
-		took(fmt.Sprintf("flushToDisk %s.*", STORED_INDEX), func() {
-			index.flushToDisk()
-		})
-		index.close()
-		log.Printf("indexing is done, start without arguments")
 		os.Exit(0)
 	}
 
+	index := NewIndex(STORED_INDEX)
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		if id, err := strconv.Atoi(r.URL.RawQuery); err == nil {
 			path, ok := index.fetchForward(id)

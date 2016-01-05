@@ -23,126 +23,22 @@ type Index struct {
 	shards []*Segment
 }
 
-const N_SEGMENTS = 4
-
 func NewIndex(name string) *Index {
-	s := make([]*Segment, N_SEGMENTS)
-	for i := 0; i < N_SEGMENTS; i++ {
-		s[i] = NewSegment(fmt.Sprintf("%s.shard.%d", name, i))
+	s := fmt.Sprintf("%s/shard.*", name)
+	matches, err := filepath.Glob(s)
+	if err != nil {
+		panic(err)
 	}
-	return &Index{
-		shards: s,
+	i := &Index{
+		shards: []*Segment{},
 	}
-}
-
-func (d *Index) adder(input chan string, done chan int) {
-	uniq := map[string]int{}
-	inc := func(text string, n int) {
-		if len(text) > 0 {
-			if current, ok := uniq[text]; ok {
-				n += current
-			}
-			uniq[text] = n
-		}
-	}
-	edge := func(text string, max int) {
-		for i := 2; i < len(text); i++ {
-			// create left edge ngrams with increasing weight
-			// at
-			// ato
-			// atom
-			// atomic
-			// ..
-			inc(text[:i+1], max/(len(text)-i))
+	if matches != nil {
+		for _, match := range matches {
+			i.shards = append(i.shards, NewSegment(match))
 		}
 	}
 
-	for {
-		select {
-		case path := <-input:
-			data, err := ioutil.ReadFile(path)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-			tokenize(string(data), func(text string, weird int) {
-				if len(text) > 2 {
-					inc(text, 1+(weird*10))
-				}
-			})
-
-			dir, name := filepath.Split(path)
-			for _, di := range strings.Split(dir, "/") {
-				inc(di, 1)
-			}
-			ext := filepath.Ext(name)
-			name = strings.TrimSuffix(name, ext)
-			edge(name, FILENAME_WEIGHT)
-			inc(ext[1:], FILENAME_WEIGHT)
-
-			s := d.shards[rand.Intn(len(d.shards))]
-
-			s.Lock()
-			id := s.addForward(path)
-
-			for text, count := range uniq {
-				if count > 1024 {
-					count = 1024
-				}
-				s.addInverted(text, id<<10|int32(count))
-			}
-
-			s.Unlock()
-
-			for k := range uniq {
-				delete(uniq, k)
-			}
-		case <-done:
-			return
-		}
-	}
-}
-func (d *Index) doIndex(args []string) {
-	log.Printf("%#v\n", args)
-	done := make(chan int)
-	workers := make(chan string)
-	maxproc := runtime.GOMAXPROCS(0)
-	for i := 0; i < maxproc; i++ {
-		log.Printf("starting indexer: %d/%d", i, maxproc)
-		go func() {
-			d.adder(workers, done)
-		}()
-	}
-	walker := func(path string, f os.FileInfo, err error) error {
-		if f != nil {
-			name := f.Name()
-			if !strings.HasPrefix(name, ".") && !f.IsDir() {
-				ext := filepath.Ext(name)
-				if _, ok := ONLY[ext]; ok {
-					workers <- path
-				}
-			}
-		}
-		return nil
-	}
-	for _, arg := range args {
-		if err := filepath.Walk(arg, walker); err != nil {
-			panic(err)
-		}
-	}
-	for i := 0; i < maxproc; i++ {
-		done <- 1
-	}
-
-	close(workers)
-	close(done)
-	log.Printf("done")
-}
-
-func (d *Index) flushToDisk() {
-	for _, s := range d.shards {
-		s.flushToDisk()
-	}
+	return i
 }
 
 func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
@@ -182,4 +78,169 @@ func (d *Index) close() {
 	for _, s := range d.shards {
 		s.close()
 	}
+}
+
+type indexable struct {
+	path    string
+	segment *Segment
+}
+
+func tokenizeAndAdd(input chan indexable, done chan int) {
+	uniq := map[string]int{}
+	inc := func(text string, n int) {
+		if len(text) > 0 {
+			if current, ok := uniq[text]; ok {
+				n += current
+			}
+			uniq[text] = n
+		}
+	}
+	edge := func(text string, max int) {
+		for i := 2; i < len(text); i++ {
+			// create left edge ngrams with increasing weight
+			// at
+			// ato
+			// atom
+			// atomic
+			// ..
+			inc(text[:i+1], max/(len(text)-i))
+		}
+	}
+
+	for {
+		select {
+		case todo := <-input:
+			data, err := ioutil.ReadFile(todo.path)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			tokenize(string(data), func(text string, weird int) {
+				if len(text) > 2 {
+					inc(text, 1+(weird*10))
+				}
+			})
+
+			dir, name := filepath.Split(todo.path)
+			for _, di := range strings.Split(dir, "/") {
+				inc(di, 1)
+			}
+			ext := filepath.Ext(name)
+			name = strings.TrimSuffix(name, ext)
+			edge(name, FILENAME_WEIGHT)
+			inc(ext[1:], FILENAME_WEIGHT)
+
+			todo.segment.Lock()
+			id := todo.segment.addForward(todo.path)
+
+			for text, count := range uniq {
+				if count > 1024 {
+					count = 1024
+				}
+				todo.segment.addInverted(text, id<<10|int32(count))
+			}
+
+			todo.segment.Unlock()
+
+			for k := range uniq {
+				delete(uniq, k)
+			}
+		case <-done:
+			return
+		}
+	}
+}
+
+func doIndex(name string, args []string) {
+	log.Printf("%#v\n", args)
+
+	maxproc := runtime.GOMAXPROCS(0)
+
+	done := make(chan int)
+	workers := make(chan indexable)
+
+	inprogress := []*Segment{}
+	n := 0
+	current_n_segment := 0
+	stop := func() {
+		for i := 0; i < maxproc; i++ {
+			done <- 1
+		}
+	}
+
+	start := func() {
+		for i := 0; i < maxproc; i++ {
+			go func() {
+				tokenizeAndAdd(workers, done)
+			}()
+		}
+	}
+
+	move := func(onlyflush bool) {
+		stop()
+
+		flushers := make(chan int)
+		for _, s := range inprogress {
+			go func(seg *Segment) {
+				seg.flushToDisk()
+				seg.close()
+				flushers <- 1
+			}(s)
+		}
+
+		for range inprogress {
+			<-flushers
+		}
+		close(flushers)
+
+		if !onlyflush {
+			inprogress = []*Segment{}
+			for i := current_n_segment; i < current_n_segment+4; i++ {
+				s := fmt.Sprintf("%s/shard.%d", name, i)
+				if err := os.MkdirAll(s, 0755); err != nil {
+					panic(err)
+				}
+
+				log.Printf("creating new shard: %s", s)
+				inprogress = append(inprogress, NewSegment(s))
+
+			}
+			current_n_segment += 4
+		}
+		runtime.GC()
+		start()
+	}
+
+	start()
+	move(false)
+	walker := func(path string, f os.FileInfo, err error) error {
+		if f != nil {
+			name := f.Name()
+			if !strings.HasPrefix(name, ".") && !f.IsDir() {
+				ext := filepath.Ext(name)
+				if _, ok := ONLY[ext]; ok {
+					n++
+					if n > 15000 {
+						move(false)
+						n = 0
+					}
+
+					workers <- indexable{path, inprogress[rand.Intn(len(inprogress))]}
+				}
+			}
+		}
+		return nil
+	}
+
+	for _, arg := range args {
+		if err := filepath.Walk(arg, walker); err != nil {
+			panic(err)
+		}
+	}
+	move(true)
+	stop()
+	close(workers)
+	close(done)
+
+	log.Printf("done")
 }
