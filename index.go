@@ -175,7 +175,7 @@ func doIndex(name string, args []string) {
 			}()
 		}
 	}
-
+	segments_at_a_time := 2
 	move := func(onlyflush bool) {
 		stop()
 
@@ -195,7 +195,7 @@ func doIndex(name string, args []string) {
 
 		if !onlyflush {
 			inprogress = []*Segment{}
-			for i := current_n_segment; i < current_n_segment+4; i++ {
+			for i := current_n_segment; i < current_n_segment+segments_at_a_time; i++ {
 				s := fmt.Sprintf("%s/shard.%d", name, i)
 				if err := os.MkdirAll(s, 0755); err != nil {
 					panic(err)
@@ -205,7 +205,7 @@ func doIndex(name string, args []string) {
 				inprogress = append(inprogress, NewSegment(s))
 
 			}
-			current_n_segment += 4
+			current_n_segment += segments_at_a_time
 		}
 		runtime.GC()
 		start()
