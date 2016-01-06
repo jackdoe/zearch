@@ -123,7 +123,7 @@ func tokenizeAndAdd(input chan indexable, done chan int) {
 
 			dir, name := filepath.Split(todo.path)
 			for _, di := range strings.Split(dir, "/") {
-				inc(di, 1)
+				inc(di, FILEPATH_WEIGHT)
 			}
 			ext := filepath.Ext(name)
 			name = strings.TrimSuffix(name, ext)
