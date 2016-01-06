@@ -4,6 +4,8 @@ basic inverted index based code search in ~900 lines.
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot.gif)
 
+fixme: the demo was made when the index was case insensitive, now you have to search for AtomicLong in order to find it
+
 # run
 
 * indexing for the first time
@@ -34,8 +36,6 @@ $ ./zearch /SRC/
 2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.19
 2016/01/05 01:11:42 done
 2016/01/05 01:11:42 indexing []string{"/SRC/"}: 45.813937s
-jack@foo ~/work/zearch $ ./zearch
-
 ```
 
 it will create N shards (one shard every 15_000 files) with prefix `/tmp/zearch.index.bin/shard.*`, each of which is binary dump of string arrays and postings,
@@ -91,7 +91,6 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 
 * just open http://localhost:8080, and be amazed by the design :D
 * basenames can be searched with left edge ngrams so, `atomic.go` can be found with `a,at,ato,atom,atomic`, and the weight is increasing as they go closer to the full word
-* the max token len is MAX_TOKEN_LEN which is set to 10 characters, this is based on no data at all, just feels ok when i search, not only i dont have to type more than 10 characters to find the thing, but very very few things conflict after 10 characters
 * the doc id is id << 10 | weight, so the max weight is 1024 and we can store max 2097152 (2**21) files, otherwise the postinglist has to be moved from `[]int32` to `[]int64`
 * index is case sensitive, look at [tokenizer](#tokenizer) for more detail on the tokenizer
 

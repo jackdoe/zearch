@@ -19,10 +19,6 @@ const (
 	FILENAME_WEIGHT = 200
 	FILEPATH_WEIGHT = 1
 	STORED_INDEX    = "/tmp/zearch.index.bin"
-
-	// for me it seems like all tokens > 10 symbols just waste space
-	// but depending on your files, this might not be the case
-	MAX_TOKEN_LEN = 10
 )
 
 type Hit struct {
