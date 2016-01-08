@@ -163,7 +163,7 @@ var work = function(query) {
                res.innerHTML = s
                window.location.hash = query
            } else {
-               res.innerHTML = "error fetching results, status:" + xhr.status + ", text: xhr.responseText"
+               res.innerHTML = "error fetching results, status:" + xhr.status + ", text: " + xhr.responseText
            }
        }
    }
