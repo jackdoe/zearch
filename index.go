@@ -12,11 +12,12 @@ import (
 )
 
 var ONLY = map[string]bool{
-	".java": true,
-	".c":    true,
-	".go":   true,
-	".pl":   true,
-	".pm":   true,
+	".java":  true,
+	".c":     true,
+	".go":    true,
+	".pl":    true,
+	".pm":    true,
+	".scala": true,
 }
 
 type Index struct {
