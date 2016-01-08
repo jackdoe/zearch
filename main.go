@@ -172,7 +172,7 @@ var work = function(query) {
 var q = document.getElementById("q")
 q.addEventListener('keyup', function(event) { work(q.value) });
 q.value = window.location.hash.substr(1)
-if (q.value > 0)
+if (q.value.length > 0)
         work(q.value)
 </script>
 </html>`
