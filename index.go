@@ -20,21 +20,23 @@ var ONLY = map[string]bool{
 }
 
 type Index struct {
-	shards []*Segment
+	segments []*Segment
 }
 
 func NewIndex(name string) *Index {
-	s := fmt.Sprintf("%s/shard.*", name)
+	s := fmt.Sprintf("%s/segment.*", name)
+	log.Printf("loading index: %s", s)
 	matches, err := filepath.Glob(s)
 	if err != nil {
 		panic(err)
 	}
 	i := &Index{
-		shards: []*Segment{},
+		segments: []*Segment{},
 	}
 	if matches != nil {
 		for _, match := range matches {
-			i.shards = append(i.shards, NewSegment(match))
+			log.Printf("loading segment: %s", match)
+			i.segments = append(i.segments, NewSegment(match))
 		}
 	}
 
@@ -42,8 +44,8 @@ func NewIndex(name string) *Index {
 }
 
 func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
-	for i := 0; i < len(d.shards); i++ {
-		query.Prepare(d.shards[i])
+	for i := 0; i < len(d.segments); i++ {
+		query.Prepare(d.segments[i])
 		for query.Next() != NO_MORE {
 			id := query.GetDocId()
 			cb(int32(i)<<24|id, query.Score())
@@ -52,12 +54,12 @@ func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
 }
 
 func (d *Index) fetchForward(id int) (string, bool) {
-	shard := int(id >> 24)
+	segment := int(id >> 24)
 	id = id & 0x00FFFFFF
-	if shard < 0 || shard > len(d.shards) {
+	if segment < 0 || segment > len(d.segments) {
 		return "", false
 	}
-	if s, ok := d.shards[shard].forward.read(uint32(id)); ok {
+	if s, ok := d.segments[segment].forward.read(uint32(id)); ok {
 		return s, true
 	}
 	return "", false
@@ -66,7 +68,7 @@ func (d *Index) fetchForward(id int) (string, bool) {
 func (d *Index) stats() (int, int) {
 	total := 0
 	approxterms := 0
-	for _, s := range d.shards {
+	for _, s := range d.segments {
 		total += s.forward.count()
 		approxterms += s.inverted.count()
 	}
@@ -75,7 +77,7 @@ func (d *Index) stats() (int, int) {
 }
 
 func (d *Index) close() {
-	for _, s := range d.shards {
+	for _, s := range d.segments {
 		s.close()
 	}
 }
@@ -196,12 +198,12 @@ func doIndex(name string, args []string) {
 		if !onlyflush {
 			inprogress = []*Segment{}
 			for i := current_n_segment; i < current_n_segment+segments_at_a_time; i++ {
-				s := fmt.Sprintf("%s/shard.%d", name, i)
+				s := fmt.Sprintf("%s/segment.%d", name, i)
 				if err := os.MkdirAll(s, 0755); err != nil {
 					panic(err)
 				}
 
-				log.Printf("creating new shard: %s", s)
+				log.Printf("creating new segment: %s", s)
 				inprogress = append(inprogress, NewSegment(s))
 
 			}

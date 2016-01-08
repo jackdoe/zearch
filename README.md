@@ -12,30 +12,13 @@ fixme: the demo was made when the index was case insensitive, now you have to se
 
 ```
 $ go build
-$ ./zearch /SRC/
-2016/01/05 01:10:56 []string{"/SRC/"}
-2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.0
-2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.1
-2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.2
-2016/01/05 01:10:56 creating new shard: /tmp/zearch.index.bin/shard.3
-2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.4
-2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.5
-2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.6
-2016/01/05 01:11:07 creating new shard: /tmp/zearch.index.bin/shard.7
-2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.8
-2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.9
-2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.10
-2016/01/05 01:11:14 creating new shard: /tmp/zearch.index.bin/shard.11
-2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.12
-2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.13
-2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.14
-2016/01/05 01:11:23 creating new shard: /tmp/zearch.index.bin/shard.15
-2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.16
-2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.17
-2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.18
-2016/01/05 01:11:36 creating new shard: /tmp/zearch.index.bin/shard.19
-2016/01/05 01:11:42 done
-2016/01/05 01:11:42 indexing []string{"/SRC/"}: 45.813937s
+$ ./zearch -dir-to-index /SRC
+2016/01/08 20:52:53 []string{"/SRC"}
+2016/01/08 20:52:53 creating new segment: /tmp/zearch/segment.0
+2016/01/08 20:52:53 creating new segment: /tmp/zearch/segment.1
+...
+2016/01/08 20:53:49 done
+2016/01/08 20:53:49 indexing []string{"/SRC"}: 55.399701s
 ```
 
 it will create N shards (one shard every 15_000 files) with prefix `/tmp/zearch.index.bin/shard.*`, each of which is binary dump of string arrays and postings,
@@ -62,6 +45,17 @@ jack@foo ~ $ du -ah /tmp/zearch.index.bin/shard.0/
 ```
 $ ./zearch # without any arguments
 2016/01/02 13:10:51 listening on port 8080
+```
+
+```
+$ ./zearch --help
+Usage of ./zearch:
+  -bind string
+        address to bind to (default ":8080")
+  -dir-to-index string
+        directory to index
+  -index-store-dir string
+        directory to store the index (default "/tmp/zearch")
 ```
 
 # json api

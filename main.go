@@ -11,14 +11,13 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	PORT            = 8080
 	FILENAME_WEIGHT = 200
 	FILEPATH_WEIGHT = 1
-	STORED_INDEX    = "/tmp/zearch.index.bin"
 )
 
 type Hit struct {
@@ -36,17 +35,20 @@ type Result struct {
 }
 
 func main() {
+	pdirtoindex := flag.String("dir-to-index", "", "directory to index")
+	pstoredir := flag.String("index-store-dir", "/tmp/zearch", "directory to store the index")
+	paddr := flag.String("bind", ":8080", "address to bind to")
 	flag.Parse()
-	args := flag.Args()
 
-	if len(args) > 0 {
-		took(fmt.Sprintf("indexing %#v", args), func() {
-			doIndex(STORED_INDEX, args)
+	if len(*pdirtoindex) > 0 {
+		a := strings.Split(*pdirtoindex, ",")
+		took(fmt.Sprintf("indexing %#v", a), func() {
+			doIndex(*pstoredir, a)
 		})
 		os.Exit(0)
 	}
 
-	index := NewIndex(STORED_INDEX)
+	index := NewIndex(*pstoredir)
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		if id, err := strconv.Atoi(r.URL.RawQuery); err == nil {
 			path, ok := index.fetchForward(id)
@@ -164,6 +166,6 @@ $(document).ready(function() {
 		fmt.Fprintf(w, s)
 	})
 
-	log.Printf("listening on port %d\n", PORT)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT), nil))
+	log.Printf("listening on %s\n", *paddr)
+	log.Fatal(http.ListenAndServe(*paddr, nil))
 }
