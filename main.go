@@ -36,7 +36,7 @@ type Result struct {
 
 func main() {
 	pdirtoindex := flag.String("dir-to-index", "", "directory to index")
-	pstoredir := flag.String("index-store-dir", "/tmp/zearch", "directory to store the index")
+	pstoredir := flag.String("dir-to-store", "/tmp/zearch", "directory to store the index")
 	paddr := flag.String("bind", ":8080", "address to bind to")
 	flag.Parse()
 
