@@ -96,9 +96,10 @@ func main() {
 			exec_dont_care("pkill", "--signal", "1", "zearch")
 			current++
 
-			time.Sleep(1000 * time.Millisecond)
 			old_body = body
 		}
+
+		time.Sleep(10000 * time.Millisecond)
 	}
 }
 
