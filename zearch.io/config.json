@@ -9,6 +9,7 @@
     {"url":"https://github.com/apache/logging-log4j2","dir":"log4j2"},
     {"url":"https://github.com/apache/lucene-solr","dir":"lucene"},
     {"url":"https://github.com/apache/mesos","dir":"mesos"},
+    {"url":"https://github.com/ruby/ruby","dir":"ruby"},
     {"url":"git://git.musl-libc.org/musl","dir":"musl"},
     {"url":"https://github.com/Perl/perl5","dir":"perl5"},
     {"url":"https://github.com/apache/spark","dir":"spark"}
