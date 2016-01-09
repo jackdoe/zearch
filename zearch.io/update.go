@@ -106,7 +106,7 @@ func main() {
 			tmp := fmt.Sprintf("%s.lnk", name)
 			exec_dont_care("ln", "-vs", name, tmp)
 			exec_dont_care("mv", "-v", tmp, *INDEX)
-			exec_dont_care("pkill", "--signal", "1", "zearch")
+			exec_dont_care("pkill", "--signal", "1", "zearch$")
 			current++
 
 			old_body = body
