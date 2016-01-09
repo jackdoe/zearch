@@ -15,6 +15,7 @@ import (
 
 var ROOT *string
 var INDEX *string
+var URL *string
 
 type repository struct {
 	Url string
@@ -52,7 +53,7 @@ func (r *repository) clone_if_not_exists() {
 
 func (r *repository) pull() {
 	os.MkdirAll(r.path(), 0755)
-	out := r.exec("git", "-C", r.path(), "pull")
+	out := r.exec("git", fmt.Sprintf("--work-tree=%s", r.path()), fmt.Sprintf("--git-dir=%s/.git", r.path()), "pull")
 	log.Printf(string(out))
 }
 
@@ -62,22 +63,31 @@ func main() {
 
 	ROOT = flag.String("dir-to-index", "/SRC", "directory to index")
 	INDEX := flag.String("dir-to-store", "/tmp/zearch", "directory to store the index")
+	URL := flag.String("url", "", "config url")
 	flag.Parse()
+	if len(*URL) == 0 {
+		log.Fatalf("need -url argument for config.json (see https://raw.githubusercontent.com/jackdoe/zearch/master/zearch.io/config.json)")
+	}
 
 	name_for_iteration := func(i int) string {
 		return fmt.Sprintf("%s.%d", *INDEX, i)
 	}
-
-	for {
+	update := func() {
 		data := []repository{}
-		r, _ := http.Get("https://raw.githubusercontent.com/jackdoe/zearch/master/zearch.io/config.json")
-
-		body, _ := ioutil.ReadAll(r.Body)
+		r, err := http.Get(*URL)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		body, err := ioutil.ReadAll(r.Body)
 		r.Body.Close()
-
+		if err != nil {
+			log.Print(err)
+			return
+		}
 		if err := json.Unmarshal(body, &data); err != nil {
 			log.Print(err)
-			continue
+			return
 		}
 
 		if bytes.Compare(body, old_body) > 0 {
@@ -98,7 +108,10 @@ func main() {
 
 			old_body = body
 		}
+	}
 
+	for {
+		update()
 		time.Sleep(10000 * time.Millisecond)
 	}
 }
