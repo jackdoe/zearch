@@ -1,4 +1,4 @@
-package main
+package index
 
 import (
 	"log"
@@ -13,7 +13,7 @@ var WEIRD = map[string]int{
 	"class":    1,
 }
 
-func tokenize(input string, cb func(string, int)) {
+func Tokenize(input string, cb func(string, int)) {
 	weird := 0
 	start, end := -1, -1
 	for i, c := range input {
@@ -47,7 +47,7 @@ func tokenize(input string, cb func(string, int)) {
 	}
 }
 
-func took(name string, r func()) {
+func Took(name string, r func()) {
 	start := time.Now()
 	r()
 	elapsed := time.Since(start)

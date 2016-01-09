@@ -1,6 +1,7 @@
 package main
 
 import (
+	idx "./index"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,14 +11,12 @@ import (
 	_ "net/http/pprof"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
-)
-
-const (
-	FILENAME_WEIGHT = 200
-	FILEPATH_WEIGHT = 1
 )
 
 type Hit struct {
@@ -40,18 +39,34 @@ func main() {
 	paddr := flag.String("bind", ":8080", "address to bind to")
 	flag.Parse()
 
+	rwlock := &sync.RWMutex{}
 	if len(*pdirtoindex) > 0 {
 		a := strings.Split(*pdirtoindex, ",")
-		took(fmt.Sprintf("indexing %#v", a), func() {
-			doIndex(*pstoredir, a)
+		idx.Took(fmt.Sprintf("indexing %#v", a), func() {
+			idx.DoIndex(*pstoredir, a)
 		})
 		os.Exit(0)
 	}
+	index := idx.NewIndex(*pstoredir)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+	go func() {
+		for range c {
+			rwlock.Lock()
 
-	index := NewIndex(*pstoredir)
+			index.Close()
+			index = idx.NewIndex(*pstoredir)
+
+			rwlock.Unlock()
+		}
+	}()
+
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
+		rwlock.RLock()
+		defer rwlock.RUnlock()
+
 		if id, err := strconv.Atoi(r.URL.RawQuery); err == nil {
-			path, ok := index.fetchForward(id)
+			path, ok := index.FetchForward(id)
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
@@ -70,16 +85,19 @@ func main() {
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		t0 := time.Now()
 
-		queries := []Query{}
+		rwlock.RLock()
+		defer rwlock.RUnlock()
+
+		queries := []idx.Query{}
 		unescaped, _ := url.QueryUnescape(r.URL.RawQuery)
-		tokenize(unescaped, func(text string, weird int) {
-			queries = append(queries, NewTerm(text))
+		idx.Tokenize(unescaped, func(text string, weird int) {
+			queries = append(queries, idx.NewTerm(text))
 		})
-		var query Query
+		var query idx.Query
 		if len(queries) == 1 {
 			query = queries[0]
 		} else {
-			query = NewBoolAndQuery(queries)
+			query = idx.NewBoolAndQuery(queries)
 		}
 
 		hits := []*Hit{}
@@ -104,17 +122,17 @@ func main() {
 		}
 
 		total := 0
-		index.executeQuery(query, func(id int32, score int64) {
+		index.ExecuteQuery(query, func(id int32, score int64) {
 			total++
 			add(&Hit{Id: id, Score: score})
 		})
 
 		for _, hit := range hits {
-			hit.Path, _ = index.fetchForward(int(hit.Id))
+			hit.Path, _ = index.FetchForward(int(hit.Id))
 		}
 
 		elapsed := time.Since(t0)
-		totalfiles, approxterms := index.stats()
+		totalfiles, approxterms := index.Stats()
 		res := &Result{
 			Hits:          hits,
 			FilesMatching: total,

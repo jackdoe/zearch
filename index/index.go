@@ -1,4 +1,4 @@
-package main
+package index
 
 import (
 	"fmt"
@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+)
+
+const (
+	FILENAME_WEIGHT = 200
+	FILEPATH_WEIGHT = 1
 )
 
 var ONLY = map[string]bool{
@@ -44,7 +49,7 @@ func NewIndex(name string) *Index {
 	return i
 }
 
-func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
+func (d *Index) ExecuteQuery(query Query, cb func(int32, int64)) {
 	for i := 0; i < len(d.segments); i++ {
 		query.Prepare(d.segments[i])
 		for query.Next() != NO_MORE {
@@ -54,7 +59,7 @@ func (d *Index) executeQuery(query Query, cb func(int32, int64)) {
 	}
 }
 
-func (d *Index) fetchForward(id int) (string, bool) {
+func (d *Index) FetchForward(id int) (string, bool) {
 	segment := int(id >> 24)
 	id = id & 0x00FFFFFF
 	if segment < 0 || segment > len(d.segments) {
@@ -66,7 +71,7 @@ func (d *Index) fetchForward(id int) (string, bool) {
 	return "", false
 }
 
-func (d *Index) stats() (int, int) {
+func (d *Index) Stats() (int, int) {
 	total := 0
 	approxterms := 0
 	for _, s := range d.segments {
@@ -77,7 +82,7 @@ func (d *Index) stats() (int, int) {
 	return total, approxterms
 }
 
-func (d *Index) close() {
+func (d *Index) Close() {
 	for _, s := range d.segments {
 		s.close()
 	}
@@ -118,7 +123,7 @@ func tokenizeAndAdd(input chan indexable, done chan int) {
 				log.Print(err)
 				continue
 			}
-			tokenize(string(data), func(text string, weird int) {
+			Tokenize(string(data), func(text string, weird int) {
 				if len(text) > 2 {
 					inc(text, 1+(weird*10))
 				}
@@ -154,7 +159,7 @@ func tokenizeAndAdd(input chan indexable, done chan int) {
 	}
 }
 
-func doIndex(name string, args []string) {
+func DoIndex(name string, args []string) {
 	log.Printf("%#v\n", args)
 
 	maxproc := runtime.GOMAXPROCS(0)
