@@ -72,25 +72,28 @@ func main() {
 	name_for_iteration := func(i int) string {
 		return fmt.Sprintf("%s.%d", *INDEX, i)
 	}
-	update := func() {
+
+	for {
+		time.Sleep(10000 * time.Millisecond)
+
 		data := []repository{}
 		r, err := http.Get(*URL)
 		if err != nil {
 			log.Print(err)
-			return
+			continue
 		}
 		body, err := ioutil.ReadAll(r.Body)
 		r.Body.Close()
 		if err != nil {
 			log.Print(err)
-			return
+			continue
 		}
 		if err := json.Unmarshal(body, &data); err != nil {
 			log.Print(err)
-			return
+			continue
 		}
 
-		if bytes.Compare(body, old_body) > 0 {
+		if bytes.Compare(body, old_body) != 0 {
 			for _, r := range data {
 				r.clone_if_not_exists()
 				r.pull()
@@ -108,11 +111,6 @@ func main() {
 
 			old_body = body
 		}
-	}
-
-	for {
-		update()
-		time.Sleep(10000 * time.Millisecond)
 	}
 }
 
