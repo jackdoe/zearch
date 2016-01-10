@@ -105,7 +105,7 @@ func main() {
 			exec_dont_care("zearch", "-dir-to-index", *ROOT, "-dir-to-store", name)
 			tmp := fmt.Sprintf("%s.lnk", name)
 			exec_dont_care("ln", "-vs", name, tmp)
-			exec_dont_care("mv", "-v", tmp, *INDEX)
+			exec_dont_care("mv", "-Tvf", tmp, *INDEX)
 			exec_dont_care("pkill", "--signal", "1", "zearch$")
 			current++
 
