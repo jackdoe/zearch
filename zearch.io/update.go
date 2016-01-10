@@ -1,6 +1,7 @@
 package main
 
 import (
+	idx "../index"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -10,10 +11,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
-var ROOT *string
+var SRC *string
 var INDEX *string
 var URL *string
 
@@ -33,7 +35,7 @@ func (r *repository) exec(name string, arg ...string) []byte {
 }
 
 func (r *repository) path() string {
-	return fmt.Sprintf("%s/%s", *ROOT, r.Dir)
+	return fmt.Sprintf("%s/%s", *SRC, r.Dir)
 }
 
 func (r *repository) exists() bool {
@@ -57,11 +59,21 @@ func (r *repository) pull() {
 	log.Printf(string(out))
 }
 
+func exec_dont_care(name string, arg ...string) []byte {
+	out, err := exec.Command(name, arg...).Output()
+	log.Printf("%s %#v = %s, [ %+v] ", name, arg, out, err)
+	return out
+}
+
+func remove(name string) {
+	exec_dont_care("rm", "-rvf", name)
+}
+
 func main() {
 	current := 0
 	old_body := []byte{}
 
-	ROOT = flag.String("dir-to-index", "/SRC", "directory to index")
+	SRC = flag.String("dir-to-index", "/SRC", "directory to index")
 	INDEX := flag.String("dir-to-store", "/tmp/zearch", "directory to store the index")
 	URL := flag.String("url", "", "config url")
 	flag.Parse()
@@ -102,24 +114,23 @@ func main() {
 			name := name_for_iteration(current)
 			remove(name_for_iteration(current - 2))
 			remove(name)
-			exec_dont_care("zearch", "-dir-to-index", *ROOT, "-dir-to-store", name)
+
+			a := strings.Split(*SRC, ",")
+			idx.Took(fmt.Sprintf("indexing %#v", a), func() {
+				idx.DoIndex(name, a)
+			})
+
 			tmp := fmt.Sprintf("%s.lnk", name)
-			exec_dont_care("ln", "-vs", name, tmp)
-			exec_dont_care("mv", "-Tvf", tmp, *INDEX)
+			if err := os.Symlink(name, tmp); err != nil {
+				log.Print(err)
+			}
+			if err := os.Rename(tmp, *INDEX); err != nil {
+				log.Print(err)
+			}
 			exec_dont_care("pkill", "--signal", "1", "zearch$")
 			current++
 
 			old_body = body
 		}
 	}
-}
-
-func exec_dont_care(name string, arg ...string) []byte {
-	out, err := exec.Command(name, arg...).Output()
-	log.Printf("%s %#v = %s, [ %+v] ", name, arg, out, err)
-	return out
-}
-
-func remove(name string) {
-	exec_dont_care("rm", "-rvf", name)
 }
