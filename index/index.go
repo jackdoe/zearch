@@ -20,7 +20,7 @@ var ONLY = map[string]bool{
 	".java":  true,
 	".c":     true,
 	".cpp":   true,
-	".cc":   true,
+	".cc":    true,
 	".go":    true,
 	".pl":    true,
 	".pm":    true,
