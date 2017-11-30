@@ -5,6 +5,7 @@ import (
 	"fmt"
 	mmap "github.com/edsrzf/mmap-go"
 	"os"
+	"path"
 	"sort"
 	"sync"
 	"unsafe"
@@ -136,9 +137,9 @@ func NewSegment(root string) *Segment {
 	return &Segment{
 		inmemoryInverted: make(map[string][]int32),
 		inmemoryForward:  make([]string, 100),
-		inverted:         NewStoredStringArray(fmt.Sprintf("%s/inverted", root)),
-		forward:          NewStoredStringArray(fmt.Sprintf("%s/forward", root)),
-		postings:         NewMMaped(fmt.Sprintf("%s/posting", root)),
+		inverted:         NewStoredStringArray(path.Join(root,"inverted")),
+		forward:          NewStoredStringArray(path.Join(root,"forward")),
+		postings:         NewMMaped(path.Join(root,"posting")),
 	}
 }
 func (s *Segment) close() {

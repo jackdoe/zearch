@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"path"
 	"runtime"
 	"strings"
 )
@@ -32,7 +33,7 @@ type Index struct {
 }
 
 func NewIndex(name string) *Index {
-	s := fmt.Sprintf("%s/segment.*", name)
+	s := path.Join(name,"segment.*")
 	log.Printf("loading index: %s", s)
 	matches, err := filepath.Glob(s)
 	if err != nil {
@@ -206,7 +207,7 @@ func DoIndex(name string, args []string) {
 		if !onlyflush {
 			inprogress = []*Segment{}
 			for i := current_n_segment; i < current_n_segment+segments_at_a_time; i++ {
-				s := fmt.Sprintf("%s/segment.%d", name, i)
+				s := path.Join(name,fmt.Sprintf("segment.%d", i))
 				if err := os.MkdirAll(s, 0755); err != nil {
 					panic(err)
 				}
