@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"path"
 	"time"
 )
 
@@ -35,7 +36,7 @@ func (r *repository) exec(name string, arg ...string) []byte {
 }
 
 func (r *repository) path() string {
-	return fmt.Sprintf("%s/%s", *SRC, r.Dir)
+	return path.Join(*SRC, r.Dir)
 }
 
 func (r *repository) exists() bool {
