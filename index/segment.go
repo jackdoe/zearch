@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	mmap "github.com/edsrzf/mmap-go"
-	"compress/gzip"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -82,26 +80,6 @@ func (s *StoredStringArray) write(input []string, cb func(string) uint64) {
 	}
 }
 
-
-func (s *StoredStringArray) writeBytes(input [][]byte) {
-	b8 := make([]byte, 8)
-	off := uint32(0)
-	s.header.seekToStart()
-	s.data.seekToStart()
-
-	for i := 0; i < len(input); i++ {
-		bstr := input[i]
-		putUint64(b8, uint64(off)<<32|uint64(len(bstr)))
-		s.header.writeOrPanic(b8)
-		putUint64(b8, 0)
-		s.header.writeOrPanic(b8)
-
-		s.data.writeOrPanic(bstr)
-		off += uint32(len(bstr))
-	}
-}
-
-
 func (s *StoredStringArray) count() int {
 	return len(s.header.m) / 16
 }
@@ -119,7 +97,7 @@ func (s *StoredStringArray) read(id uint32) (string, bool) {
 	off := uint32(offlen >> 32)
 	len := uint32(offlen & 0xFFFFFFFF)
 
-	return Decompress(s.data.m[off : off+len]), true
+	return string(s.data.m[off : off+len]), true
 }
 
 func (s *StoredStringArray) bsearch(input []byte) (uint64, bool) {
@@ -148,7 +126,7 @@ func (s *StoredStringArray) bsearch(input []byte) (uint64, bool) {
 
 type Segment struct {
 	inmemoryInverted map[string][]int32
-	inmemoryForward  [][]byte
+	inmemoryForward  []string
 	inverted         *StoredStringArray
 	forward          *StoredStringArray
 	postings         *MMaped
@@ -158,7 +136,7 @@ type Segment struct {
 func NewSegment(root string) *Segment {
 	return &Segment{
 		inmemoryInverted: make(map[string][]int32),
-		inmemoryForward:  make([][]byte, 100),
+		inmemoryForward:  make([]string, 100),
 		inverted:         NewStoredStringArray(path.Join(root,"inverted")),
 		forward:          NewStoredStringArray(path.Join(root,"forward")),
 		postings:         NewMMaped(path.Join(root,"posting")),
@@ -178,36 +156,10 @@ func (s *Segment) findPostingsList(term string) []byte {
 	}
 	return []byte{}
 }
-func Compress(input string) []byte {
-        var buf bytes.Buffer
-        compr,err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
-	if err != nil {
-		panic(err)
-	}
-        compr.Write([]byte(input))
-        compr.Close()
-        output := buf.Bytes()
-        return output
-}
-
-func Decompress(input []byte) string {
-	b := bytes.NewBuffer(input)
-	r, err := gzip.NewReader(b)
-	if err != nil {
-		panic(err)
-	}
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-
-	r.Close()
-	return string(buf)
-}
 
 func (s *Segment) addForward(doc string) int32 {
 	id := len(s.inmemoryForward)
-	s.inmemoryForward = append(s.inmemoryForward, Compress(doc))
+	s.inmemoryForward = append(s.inmemoryForward, doc)
 	return int32(id)
 }
 
@@ -260,7 +212,9 @@ func (s *Segment) flushToDisk() {
 		return ret
 	})
 
-	s.forward.writeBytes(s.inmemoryForward)
+	s.forward.write(s.inmemoryForward, func(st string) uint64 {
+		return uint64(0)
+	})
 	s.inmemoryForward = nil
 	s.inmemoryInverted = nil
 }
