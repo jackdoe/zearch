@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"net/http"
 	"os"
 	"os/exec"
@@ -72,6 +73,7 @@ func remove(name string) {
 
 func main() {
 	current := 0
+
 	old_body := []byte{}
 
 	SRC = flag.String("dir-to-index", "/SRC", "directory to index")
@@ -84,6 +86,14 @@ func main() {
 
 	name_for_iteration := func(i int) string {
 		return fmt.Sprintf("%s.%d", *INDEX, i)
+	}
+	currentLink, err := os.Readlink(*INDEX)
+	if err == nil {
+		parts := strings.Split(currentLink,".")
+		n, err := strconv.Atoi(parts[len(parts)-1])
+		if err == nil && n >= 0 {
+			current = n + 1
+		}
 	}
 
 	for {

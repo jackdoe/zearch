@@ -23,6 +23,7 @@ import (
 type Hit struct {
 	Path  string
 	Id    int32
+	Segment int
 	Score int64
 }
 
@@ -65,21 +66,27 @@ func main() {
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		rwlock.RLock()
 		defer rwlock.RUnlock()
-
-		if id, err := strconv.Atoi(r.URL.RawQuery); err == nil {
-			path, ok := index.FetchForward(id)
-			if !ok {
-				w.WriteHeader(http.StatusNotFound)
+		splitted := strings.Split(r.URL.RawQuery,",")
+		if len(splitted) != 2 {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			id, errId := strconv.Atoi(splitted[0])
+			segment, errSegment := strconv.Atoi(splitted[1])
+			if errId != nil || errSegment != nil {
+				w.WriteHeader(http.StatusBadRequest)
 			} else {
-				if file, err := ioutil.ReadFile(path); err == nil {
-					w.Header().Set("Content-Type", "text/plain")
-					w.Write(file)
+				path, ok := index.FetchForward(id, int(segment))
+				if !ok {
+					w.WriteHeader(http.StatusNotFound)
 				} else {
-					w.WriteHeader(http.StatusInternalServerError)
+					if file, err := ioutil.ReadFile(path); err == nil {
+						w.Header().Set("Content-Type", "text/plain")
+						w.Write(file)
+					} else {
+						w.WriteHeader(http.StatusInternalServerError)
+					}
 				}
 			}
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
 		}
 	})
 
@@ -123,13 +130,13 @@ func main() {
 		}
 
 		total := 0
-		index.ExecuteQuery(query, func(id int32, score int64) {
+		index.ExecuteQuery(query, func(id int32, segment int, score int64) {
 			total++
-			add(&Hit{Id: id, Score: score})
+			add(&Hit{Id: id, Segment: segment, Score: score})
 		})
 
 		for _, hit := range hits {
-			hit.Path, _ = index.FetchForward(int(hit.Id))
+			hit.Path, _ = index.FetchForward(int(hit.Id), hit.Segment)
 		}
 
 		elapsed := time.Since(t0)
@@ -177,7 +184,7 @@ var work = function(query) {
                s += "took: " + data.TookSeconds.toFixed(5) + "s, matching: " + data.FilesMatching + ", searched in " + data.FilesInIndex + " files and " + data.TokensInIndex + " tokens\n"
                for (var i = 0; i < data.Hits.length; i++) {
                    var hit = data.Hits[i]
-                   s +=  hit.Score + " <a href='/fetch?"+hit.Id +"#"+hit.Path+"'>"+hit.Path+"</a>\n"
+                   s +=  hit.Score + " <a href='/fetch?"+hit.Id +"," + hit.Segment + "#" + hit.Path+"'>"+hit.Path+"</a>\n"
                }
                res.innerHTML = s
                window.location.hash = query

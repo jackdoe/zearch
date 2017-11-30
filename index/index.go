@@ -52,19 +52,17 @@ func NewIndex(name string) *Index {
 	return i
 }
 
-func (d *Index) ExecuteQuery(query Query, cb func(int32, int64)) {
+func (d *Index) ExecuteQuery(query Query, cb func(int32, int, int64)) {
 	for i := 0; i < len(d.segments); i++ {
 		query.Prepare(d.segments[i])
 		for query.Next() != NO_MORE {
 			id := query.GetDocId()
-			cb(int32(i)<<24|id, query.Score())
+			cb(id, i, query.Score())
 		}
 	}
 }
 
-func (d *Index) FetchForward(id int) (string, bool) {
-	segment := int(id >> 24)
-	id = id & 0x00FFFFFF
+func (d *Index) FetchForward(id int, segment int) (string, bool) {
 	if segment < 0 || segment > len(d.segments) {
 		return "", false
 	}
@@ -231,7 +229,7 @@ func DoIndex(name string, args []string) {
 				ext := filepath.Ext(name)
 				if _, ok := ONLY[ext]; ok {
 					n++
-					if n > 15000 {
+					if n > 2000 {
 						move(false)
 						n = 0
 					}
