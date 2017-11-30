@@ -1,0 +1,3 @@
+FROM golang:1.9-stretch
+
+RUN mkdir /S/ && cd /S/ && (for i in `curl https://raw.githubusercontent.com/jackdoe/zearch/master/zearch.io/config.json | json_pp | grep url | cut -d '"' -f 4`; do git clone --depth 1 $i; done)
