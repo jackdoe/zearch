@@ -48,7 +48,7 @@ func (r *repository) exists() bool {
 func (r *repository) clone_if_not_exists() {
 	if !r.exists() {
 		os.MkdirAll(r.path(), 0755)
-		out := r.exec("git", "clone", r.Url, r.path())
+		out := r.exec("git", "clone", "--depth", "1", r.Url, r.path())
 		log.Printf(string(out))
 	}
 }
