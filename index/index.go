@@ -229,7 +229,7 @@ func DoIndex(name string, args []string) {
 				ext := filepath.Ext(name)
 				if _, ok := ONLY[ext]; ok {
 					n++
-					if n > 2000 {
+					if n > 1000 {
 						move(false)
 						n = 0
 					}
