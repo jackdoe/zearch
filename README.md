@@ -93,12 +93,10 @@ $ curl -s 'http://localhost:8080/search?udp%20ipv4' | json_xs
 `zearch-search-current` - searches the current word or marked selection
 
 ```
-(add-to-list 'load-path "/path/to/zearch.el")
+(load-file "/path/to/zearch.el")
 (require 'zearch)
 (define-key global-map (kbd "M-s") 'zearch-search-current)
 
-;; i use it with key-chord:
-;; (key-chord-define-global "jj" 'zearch-search-current)
 ```
 
 ![screenshot](https://raw.githubusercontent.com/jackdoe/zearch/master/screenshot-emacs.gif)
