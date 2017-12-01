@@ -7,7 +7,7 @@
   {"url":"https://github.com/apache/hbase","dir":"hbase"},
   {"url":"https://github.com/apache/kafka","dir":"kafka"},
   {"url":"https://github.com/apache/logging-log4j2","dir":"log4j2"},
-  {"url":"https://github.com/AdoptOpenJDK/openjdk-jdk8u",dir:"jdk8"},
+  {"url":"https://github.com/AdoptOpenJDK/openjdk-jdk8u","dir":"jdk8"},
   {"url":"https://github.com/apache/lucene-solr","dir":"lucene"},
   {"url":"https://github.com/apache/mesos","dir":"mesos"},
   {"url":"https://github.com/ruby/ruby","dir":"ruby"},
