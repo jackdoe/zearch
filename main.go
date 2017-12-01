@@ -177,7 +177,7 @@ input {
 </style>
 </head>
 <body>
-<input id=q autofocus><br><small><a href="https://github.com/jackdoe/zearch">zearch.io</a>: go linux freebsd kubernetes cassandra jdk8 glibc curator hadoop hbase kafka log4j2 lucene-solr mesos musl perl5 spark</small><br>
+<input id=q autofocus><br><small><a href="https://github.com/jackdoe/zearch">zearch.io</a>: go linux freebsd kubernetes cassandra jdk8 glibc curator hadoop hbase kafka log4j2 lucene-solr mesos musl ruby perl5 spark</small><br>
 <pre id=res></pre>
 </body>
 <script>
