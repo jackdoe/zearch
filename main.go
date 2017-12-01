@@ -168,9 +168,7 @@ body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     padding: 10px;
 }
-a {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-}
+
 input {
     width: 200px;
     height: 30px;
