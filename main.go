@@ -12,19 +12,19 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
-	"path"
 	"time"
 )
 
 type Hit struct {
-	Path  string
-	Id    int32
+	Path    string
+	Id      int32
 	Segment int
-	Score int64
+	Score   int64
 }
 
 type Result struct {
@@ -37,7 +37,7 @@ type Result struct {
 
 func main() {
 	pdirtoindex := flag.String("dir-to-index", "", "directory to index")
-	pstoredir := flag.String("dir-to-store", path.Join("tmp","zearch"), "directory to store the index")
+	pstoredir := flag.String("dir-to-store", path.Join("tmp", "zearch"), "directory to store the index")
 	paddr := flag.String("bind", ":8080", "address to bind to")
 	flag.Parse()
 
@@ -66,7 +66,7 @@ func main() {
 	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		rwlock.RLock()
 		defer rwlock.RUnlock()
-		splitted := strings.Split(r.URL.RawQuery,",")
+		splitted := strings.Split(r.URL.RawQuery, ",")
 		if len(splitted) != 2 {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
@@ -161,11 +161,19 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		s := `
-<html><head><title>zearch</title>
+<html>
+<head><title>zearch</title>
+<style>
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+a {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+</style>
 </head>
 <body>
-<a href="https://github.com/jackdoe/zearch"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/a6677b08c955af8400f44c6298f40e7d19cc5b2d/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"></a>
-<input id=q autofocus>&nbsp;<small>zearch.io: go linux freebsd kubernetes cassandra jdk8 glibc curator hadoop hbase kafka log4j2 lucene-solr mesos musl perl5 spark</small><br>
+<input id=q autofocus><br><small><a href="https://github.com/jackdoe/zearch">zearch.io</a>: go linux freebsd kubernetes cassandra jdk8 glibc curator hadoop hbase kafka log4j2 lucene-solr mesos musl perl5 spark</small><br>
 <pre id=res></pre>
 </body>
 <script>
